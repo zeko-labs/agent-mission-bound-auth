@@ -1,4 +1,5 @@
 export * from "./authority-keys.js";
+export * from "./browser-profile.js";
 export * from "./boundary-events.js";
 export * from "./capabilities.js";
 export * from "./digest.js";

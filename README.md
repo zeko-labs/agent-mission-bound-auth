@@ -19,6 +19,9 @@ This demo is testnet-first by default. For mainnet, use a separate environment p
 - Stateless checkpoint verification for external apps and bearer-gated checkpoint enforcement for mission-authority state.
 - Portable `zk-mission-bundle-v1` exports with offline JWKS verification.
 - Portable `mission-bound-auth-receipt-v1` exports with trace, payment, policy, nullifier, and anchor linkage.
+- Browser mission profiles, redacted trace exports, human handoff receipts, and portable execution bundles for browser/helper agents.
+- Capability renewal for short-lived mission authority without widening holder, mission, domain, action, rail, or spend scope.
+- `production_strict` verifier mode for strong holder proof, expiry, idempotency, receipt proof evidence, and Zeko anchor enforcement.
 - Public `mba` verifier CLI for receipts, traces, anchors, and settlement state.
 - x402 rail metadata for Zeko, Ethereum, Base, Arc preview, and Tempo preview.
 - Zeko approval/receipt anchoring scripts for production on-chain audit roots.
@@ -149,6 +152,7 @@ verifyMissionBundle(bundle, jwks);
 npm test
 npm run smoke:protocol
 npm run test:conformance
+npm run test:browser-helper-conformance
 npm run test:protocol-bindings
 npm run test:conformance:remote
 npm run test:oauth-sandbox
@@ -205,6 +209,8 @@ No production Zeko operator is required for the local tutorial flow. Production 
 - [Threat model](./docs/threat-model.md)
 - [Portable receipt format](./docs/receipt-format.md)
 - [Boundary event vocabulary](./docs/boundary-events.md)
+- [Browser agent profile](./docs/browser-agent-profile.md)
+- [Helper agent starter contract](./docs/helper-agent-starter.md)
 - [Registry and nullifiers](./docs/registry-nullifiers.md)
 - [Public verifier CLI](./docs/verifier-cli.md)
 - [Integration guide](./docs/integration-guide.md)

@@ -23,6 +23,10 @@
     "jti": { "type": "string" },
     "nullifierSeed": { "type": "string" },
     "settlementReleaseCondition": { "type": "string" },
+    "previousCapabilityHash": { "type": "string" },
+    "renewalCounter": { "type": "number" },
+    "renewalReason": { "type": "string" },
+    "replacedJti": { "type": "string" },
     "nullifier": { "type": "string" }
   }
 }

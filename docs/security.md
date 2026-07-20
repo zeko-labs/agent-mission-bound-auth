@@ -5,6 +5,8 @@
 The default mission-authority key is embedded for local demonstration only.
 
 Production deployments must run with `MISSION_AUTH_PROFILE=production` and `DEMO_MODE=false`.
+For settlement release paths and browser/helper-agent production flows, use
+`MBA_VERIFIER_MODE=production_strict`.
 They must set:
 
 ```text
@@ -73,6 +75,20 @@ Budget counters are tracked per approval when `context.spendUsd` or
 `context.amountUsd` is supplied. In production, mission/enforcement state is
 persisted to `MISSION_STATE_PATH`.
 
+## Browser Helper Agents
+
+Browser/helper agents should use `mba-browser-mission-profile-v1`,
+`mba-redacted-trace-v1`, `mba-human-handoff-v1`, and
+`mba-execution-bundle-v1`. Public exports must contain only commitments,
+hashes, canonical action vocabulary, stop reasons, and verifier links. Raw
+URLs, selectors, page text, form values, addresses, emails, and payment labels
+belong only in owner-controlled private traces.
+
+`production_strict` rejects demo digest proofs and compatibility holder proofs.
+It requires Ed25519 or stronger holder proofs, expiry, idempotency keys,
+holder-key commitments, proof statement evidence, and Zeko anchor evidence for
+final receipt verification.
+
 ## Revocation
 
 The implementation includes an off-chain revocation registry for auth
@@ -100,6 +116,10 @@ production path requires signed facilitator receipts with
 id, rail, network, amount, asset, payer, payee, authorization digest, and a
 transaction hash or settlement id.
 
+Settlement release requires an anchored receipt/root, a valid lifecycle
+transition to `settlement_release_allowed`, an unused nullifier, and policy
+approval for the payment rail.
+
 ## What Is Not Yet Production-Hardened
 
 - hosted facilitator settlement for every payment rail
@@ -118,6 +138,8 @@ transaction hash or settlement id.
 - Configure `AGENT_MAPPINGS_JSON` for each enterprise customer subject mapping.
 - Persist missions, approvals, revocations, enforcement receipts, and Zeko root witnesses.
 - Enforce short approval TTLs for autonomous agents.
+- Use capability renewal instead of long-lived autonomous-agent capabilities.
+- Run browser/helper-agent settlement paths in `production_strict` verifier mode.
 - Require signed facilitator receipts or live chain verification for x402 payments.
 - Set `PRIVATE_COMPUTE_MIN_COHORT` for aggregate-only output policy.
 - Anchor approval roots and receipt roots on Zeko on a repeatable operator schedule.

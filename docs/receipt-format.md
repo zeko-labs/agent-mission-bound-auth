@@ -86,3 +86,16 @@ Receipts point to the trace commitment and holder proof scheme. Local examples
 may use `digest-holder-proof-v1`, but production traces should use
 `ed25519-holder-proof-v1` or another public-key/ZK-friendly holder proof scheme.
 The verifier rejects digest holder proofs in production mode.
+
+## Production Strict Rule
+
+`production_strict` receipt verification requires:
+
+- strong holder proof scheme evidence, currently `ed25519-holder-proof-v1`
+- proof statement hash and proof system metadata
+- payment context digest
+- nullifier
+- Zeko anchor evidence
+
+Use this mode for production-final browser/helper-agent receipts and settlement
+release checks.

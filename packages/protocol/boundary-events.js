@@ -1,9 +1,10 @@
 import { createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify } from "node:crypto";
 import { id, sha256Hex } from "./digest.js";
-import { isProductionProfile } from "./runtime.js";
+import { isProductionProfile, isProductionStrictVerifier } from "./runtime.js";
 
 export const DIGEST_HOLDER_PROOF_SCHEME = "digest-holder-proof-v1";
 export const ED25519_HOLDER_PROOF_SCHEME = "ed25519-holder-proof-v1";
+export const BROWSER_HELPER_ED25519_COMPAT_HOLDER_PROOF_SCHEME = "browser-helper-ed25519-pop-v1";
 
 export function holderChallengeHash(eventBody) {
   return sha256Hex({
@@ -172,6 +173,43 @@ function verifyEd25519HolderProof(event, holderProof) {
   }
 }
 
+function verifyCompatibilityHolderProof(event, holderProof, options = {}) {
+  if (isProductionStrictVerifier(options, options.env ?? process.env)) {
+    return { valid: false, reason: "Compatibility holder proofs are not accepted in production_strict verifier mode." };
+  }
+  if (!holderProof.publicJwk) {
+    return { valid: false, reason: "Compatibility holder proof missing publicJwk." };
+  }
+  if (!isEd25519Jwk(holderProof.publicJwk)) {
+    return { valid: false, reason: "Compatibility holder proof requires an Ed25519 public JWK." };
+  }
+  const keyThumbprint = sha256Hex(holderProof.publicJwk);
+  if (holderProof.keyThumbprint !== keyThumbprint) {
+    return { valid: false, reason: "Compatibility holder proof key thumbprint mismatch." };
+  }
+  if (event.holderKeyCommitment !== keyThumbprint) {
+    return { valid: false, reason: "Compatibility holder proof is not bound to the event holder key commitment." };
+  }
+  try {
+    const signedChallengeHash = holderProof.appChallengeHash ?? holderProof.compatibilityChallengeHash ?? holderProof.messageHash;
+    const publicKey = createPublicKey({ key: holderProof.publicJwk, format: "jwk" });
+    const ok = cryptoVerify(
+      null,
+      Buffer.from(signedChallengeHash, "utf8"),
+      publicKey,
+      Buffer.from(holderProof.signature, "base64url")
+    );
+    if (!ok) return { valid: false, reason: "Compatibility holder proof signature is invalid." };
+    return {
+      valid: true,
+      compatibilityMode: true,
+      signedChallengeHash
+    };
+  } catch (error) {
+    return { valid: false, reason: error instanceof Error ? error.message : "Compatibility holder proof verification failed." };
+  }
+}
+
 export function verifyHolderProof(event, options = {}) {
   const holderProof = event.holderProof;
   if (!holderProof?.messageHash) {
@@ -183,6 +221,9 @@ export function verifyHolderProof(event, options = {}) {
   }
   if (holderProof.scheme === ED25519_HOLDER_PROOF_SCHEME) {
     return verifyEd25519HolderProof(event, holderProof);
+  }
+  if (holderProof.scheme === BROWSER_HELPER_ED25519_COMPAT_HOLDER_PROOF_SCHEME) {
+    return verifyCompatibilityHolderProof(event, holderProof, options);
   }
   if (!holderProof.scheme || holderProof.scheme === DIGEST_HOLDER_PROOF_SCHEME) {
     return verifyDigestHolderProof(holderProof, options);
@@ -221,6 +262,17 @@ export function verifyBoundaryEvent(event, options = {}) {
   }
   if (options.allowedDomainHashes && !options.allowedDomainHashes.includes(event.targetDomainHash)) {
     return { valid: false, reason: "Boundary event target domain not allowed." };
+  }
+  if (isProductionStrictVerifier(options, options.env ?? process.env)) {
+    if (!event.expiresAt) {
+      return { valid: false, reason: "production_strict boundary events require expiresAt." };
+    }
+    if (!event.idempotencyKey) {
+      return { valid: false, reason: "production_strict boundary events require idempotencyKey." };
+    }
+    if (!event.holderKeyCommitment) {
+      return { valid: false, reason: "production_strict boundary events require holderKeyCommitment." };
+    }
   }
   if (!options.allowExpired && event.expiresAt) {
     const expiry = Date.parse(event.expiresAt);

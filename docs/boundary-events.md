@@ -16,8 +16,11 @@ page.read
 form.fill
 vault.read
 cart.prepare
+shipping.prepare
+delivery_option.select
 payment.prepare
 payment.authorize
+checkout.review
 private_compute.run
 email.draft
 email.send
@@ -70,3 +73,22 @@ into demo proofs. Production boundary events should use
 holder proof includes a public JWK and signature over the holder challenge hash,
 and the verifier checks that `sha256(publicJwk)` matches the event's
 `holderKeyCommitment`.
+
+`browser-helper-ed25519-pop-v1` is a compatibility proof for early browser-agent
+integrations that already sign an app-specific challenge. Compatibility proofs
+must still include the canonical MBA `messageHash` so verifiers can see the
+mission/action/domain/payment context they are attached to. They are accepted
+only in compatibility/staging verifier modes. `production_strict` rejects them.
+
+## Production Strict Mode
+
+`production_strict` boundary verification requires:
+
+- `ed25519-holder-proof-v1` or a stronger ZK-friendly holder proof
+- `expiresAt`
+- `idempotencyKey`
+- `holderKeyCommitment`
+- matching mission, capability, policy, action, domain, and previous-event hash
+
+This mode is intended for production browser/helper agents and settlement
+release paths.

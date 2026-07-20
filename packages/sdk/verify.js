@@ -1,9 +1,10 @@
 import { id, sha256Hex } from "../protocol/digest.js";
 import { verifyJws } from "../protocol/authority-keys.js";
 export { verifyHolderProof, verifyTraceChain } from "../protocol/boundary-events.js";
-export { verifyReceipt } from "../protocol/receipts.js";
-export { verifyAnchorPayload, verifySettlementState } from "../protocol/registry.js";
-export { verifyCapability } from "../protocol/capabilities.js";
+export { verifyExecutionBundle, verifyBrowserMissionProfile, verifyRedactedTraceExport, verifyHandoffReceipt } from "../protocol/browser-profile.js";
+export { verifyProductionStrictReceipt, verifyReceipt } from "../protocol/receipts.js";
+export { verifyAnchorPayload, verifySettlementState, verifySettlementTransition, verifySettlementTransitionChain } from "../protocol/registry.js";
+export { verifyCapability, verifyCapabilityRenewal } from "../protocol/capabilities.js";
 
 function assertJwsMatchesBody(jws, body, jwks, label, typ) {
   const verified = verifyJws(jws, jwks, { typ });

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/handoff-receipt.schema.json",
+  "type": "object",
+  "required": ["version", "handoffId", "handoffHash", "missionIdHash", "capabilityHash", "policyHash", "stopReason", "targetDomainHash", "humanApprovalRequired", "occurredAt"],
+  "properties": {
+    "version": { "const": "mba-human-handoff-v1" },
+    "handoffId": { "type": "string" },
+    "handoffHash": { "type": "string" },
+    "missionIdHash": { "type": "string" },
+    "capabilityHash": { "type": "string" },
+    "policyHash": { "type": "string" },
+    "stopReason": { "type": "string" },
+    "checkpoint": { "type": ["string", "null"] },
+    "action": { "type": ["string", "null"] },
+    "targetDomainHash": { "type": "string" },
+    "eventHash": { "type": ["string", "null"] },
+    "traceHash": { "type": ["string", "null"] },
+    "paymentContextDigest": { "type": ["string", "null"] },
+    "holderKeyThumbprint": { "type": ["string", "null"] },
+    "humanApprovalRequired": { "type": "boolean" },
+    "notesHash": { "type": ["string", "null"] },
+    "occurredAt": { "type": "string" }
+  }
+}

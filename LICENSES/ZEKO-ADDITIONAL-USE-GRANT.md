@@ -67,9 +67,8 @@ similar production infrastructure using protected Zeko protocol-layer code.
 
 Agent Bundle means the protected Zeko product/protocol components for
 agent-native coordination, authorization, payments, and commerce, including
-SantaClawz, ZK x402, Mission-Bound Auth, Magic City when designated by Zeko
-Labs, and related protected orchestration, verifier, authorization, payment,
-settlement, and coordination components.
+SantaClawz, ZK x402, Mission-Bound Auth, and related protected orchestration,
+verifier, authorization, payment, settlement, and coordination components.
 
 ### Agent Bundle Production Deployment
 
@@ -115,7 +114,7 @@ production users, or material interaction with mainnet state.
 ## 4. No Trademark Rights
 
 This Additional Use Grant does not grant any right to use the names, logos, or
-trademarks of Zeko Labs, Zeko, SantaClawz, Magic City, or any related brand,
+trademarks of Zeko Labs, Zeko, SantaClawz, or any related brand,
 except as separately authorized in writing.
 
 ## 5. Separate Commercial Services
