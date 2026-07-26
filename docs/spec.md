@@ -83,6 +83,15 @@ portable receipts and settlement. It explicitly binds:
 The capability hash is the authority commitment downstream receipts and
 registry anchors reference.
 
+### Capability Renewal
+
+`mission-bound-capability-renewal-v1` renews short-lived capabilities without
+widening authority. A valid renewal keeps the same mission, holder key,
+principal, agent, issuer, and audience; references the previous capability
+hash; uses a fresh `jti` and nullifier; increments the renewal counter; and
+keeps domains, actions, data scopes, payment rails, and spend limit the same or
+narrower.
+
 ## Approval
 
 `mission-approval-v1` binds an approver to a mission.
@@ -124,6 +133,24 @@ Compute and side-effect checkpoints must also include an `idempotencyKey`,
 `spendUsd` or `amountUsd` is present, the authority applies the mission budget
 counter before accepting the checkpoint.
 
+## Browser Missions
+
+Browser/helper-agent workflows use four additional portable objects:
+
+- `mba-browser-mission-profile-v1`: holder/runtime/session/tab commitments,
+  current URL/domain hashes, page-state class, next-action score, stop reason,
+  and checkout checkpoint.
+- `mba-redacted-trace-v1`: public hash-only trace summary with no raw URLs,
+  selectors, page text, form values, addresses, emails, or payment labels.
+- `mba-human-handoff-v1`: proof that the agent stopped before login, payment,
+  final submit, uncertainty, budget breach, or policy conflict.
+- `mba-execution-bundle-v1`: portable export containing capability, policy,
+  browser profile, redacted trace, handoff receipt, receipt, Zeko anchor,
+  settlement state, verifier links, and owner-only trace commitment.
+
+Browser missions should use `production_strict` verification for production
+settlement paths.
+
 ## Bundle
 
 `zk-mission-bundle-v1` is the portable handoff object containing:
@@ -158,8 +185,10 @@ After action: execution receipt commitment
 Portable verifiers can independently check:
 
 - capability hash and nullifier construction
+- renewal proof preserves mission and narrows authority
 - boundary event holder-proof binding
 - trace hash chain continuity
+- browser profile and redacted trace privacy
 - receipt hash, policy hash, payment context, and settlement state
 - registry anchor payload digest and receipt linkage
 

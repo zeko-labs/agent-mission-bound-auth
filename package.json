@@ -33,6 +33,7 @@
     "smoke:live-anchor": "npm run zkapp:build && node scripts/live-anchor-smoke.mjs",
     "smoke:protocol": "node scripts/protocol-smoke.mjs",
     "test:conformance": "node scripts/conformance.mjs",
+    "test:browser-helper-conformance": "node scripts/browser-helper-conformance.mjs",
     "test:conformance:remote": "CONFORMANCE_BASE_URL=${CONFORMANCE_BASE_URL:-http://127.0.0.1:8787} node scripts/conformance.mjs",
     "test:oauth-sandbox": "node scripts/oauth-sandbox-smoke.mjs",
     "oauth:sandbox-doctor": "node scripts/oauth-sandbox-doctor.mjs",

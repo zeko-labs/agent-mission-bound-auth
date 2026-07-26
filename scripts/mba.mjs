@@ -2,6 +2,8 @@
 import fs from "node:fs";
 import {
   verifyAnchorPayload,
+  verifyExecutionBundle,
+  verifyProductionStrictReceipt,
   verifyReceipt,
   verifySettlementState,
   verifyTraceChain
@@ -13,6 +15,8 @@ function usage() {
     error: "usage",
     commands: [
       "mba verify receipt receipt.json",
+      "mba verify receipt --production-strict receipt.json",
+      "mba verify bundle execution-bundle.json",
       "mba verify trace trace.json",
       "mba verify anchor receipt.json anchor.json",
       "mba verify settlement receipt.json --registry settlement.json"
@@ -49,8 +53,9 @@ try {
   if (command !== "verify") {
     print(usage(), 1);
   } else if (subject === "receipt") {
-    const receipt = readJson(args[0]);
-    const result = verifyReceipt(receipt);
+    const strict = args[0] === "--production-strict";
+    const receipt = readJson(strict ? args[1] : args[0]);
+    const result = strict ? verifyProductionStrictReceipt(receipt) : verifyReceipt(receipt);
     print(verifierReport({
       valid: result.valid,
       capability: result.valid ? "valid" : "invalid",
@@ -59,6 +64,21 @@ try {
       paymentBinding: result.valid ? "valid" : "invalid",
       anchor: receipt.anchor ? "valid" : "not_ready",
       settlement: result.settlementState ?? "not_ready",
+      reason: result.reason
+    }), result.valid ? 0 : 1);
+  } else if (subject === "bundle") {
+    const bundle = readJson(args[0]);
+    const result = verifyExecutionBundle(bundle);
+    print(verifierReport({
+      valid: result.valid,
+      capability: result.valid ? "valid" : "invalid",
+      holderProofs: result.valid ? "valid" : "invalid",
+      traceChain: result.valid ? "valid" : "invalid",
+      policy: result.valid ? "valid" : "invalid",
+      paymentBinding: result.valid ? "valid" : "invalid",
+      anchor: bundle.zekoAnchor ? "valid" : "not_ready",
+      settlement: bundle.settlement?.state ?? bundle.receipt?.settlementState ?? "not_ready",
+      bundleHash: result.bundleHash,
       reason: result.reason
     }), result.valid ? 0 : 1);
   } else if (subject === "trace") {

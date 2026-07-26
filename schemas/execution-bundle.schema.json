@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/execution-bundle.schema.json",
+  "type": "object",
+  "required": ["version", "bundleId", "bundleHash", "exportedAt"],
+  "properties": {
+    "version": { "const": "mba-execution-bundle-v1" },
+    "bundleId": { "type": "string" },
+    "bundleHash": { "type": "string" },
+    "exportedAt": { "type": "string" },
+    "capability": { "type": ["object", "null"] },
+    "policy": { "type": ["object", "null"] },
+    "browserProfile": { "type": ["object", "null"] },
+    "redactedTrace": { "type": ["object", "null"] },
+    "handoff": { "type": ["object", "null"] },
+    "receipt": { "type": ["object", "null"] },
+    "zekoAnchor": { "type": ["object", "null"] },
+    "settlement": { "type": ["object", "null"] },
+    "verifierLinks": { "type": "array", "items": { "type": "string" } },
+    "ownerTrace": { "type": ["object", "null"] }
+  }
+}

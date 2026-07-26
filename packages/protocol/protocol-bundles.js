@@ -30,8 +30,17 @@ export function buildDiscoveryDocument(baseUrl) {
         "before_external_side_effect",
         "after_receipt"
       ],
+      browserMissions: [
+        "mba-browser-mission-profile-v1",
+        "mba-redacted-trace-v1",
+        "mba-human-handoff-v1",
+        "mba-execution-bundle-v1"
+      ],
+      renewal: ["mission-bound-capability-renewal-v1"],
+      verifierModes: ["compatibility", "production", "production_strict"],
       payments: ["x402", "zeko", "ethereum", "base", "arc-preview", "tempo-preview"],
-      anchoring: ["zeko:testnet", "mission-approval-anchor-v1", "private-compute-receipt-root"]
+      anchoring: ["zeko:testnet", "mission-approval-anchor-v1", "private-compute-receipt-root", "mba-registry-v1"],
+      settlementLifecycle: ["receipt_created", "proof_prepared", "proof_verified", "anchor_prepared", "anchored", "settlement_release_allowed", "settled"]
     }
   };
 }

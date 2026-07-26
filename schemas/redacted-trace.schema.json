@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/redacted-trace.schema.json",
+  "type": "object",
+  "required": ["version", "redactedTraceId", "redactedTraceHash", "eventCount", "traceHash", "latestEventHash", "publicEvents", "privacyProfile", "exportedAt"],
+  "properties": {
+    "version": { "const": "mba-redacted-trace-v1" },
+    "redactedTraceId": { "type": "string" },
+    "redactedTraceHash": { "type": "string" },
+    "missionIdHash": { "type": "string" },
+    "capabilityHash": { "type": "string" },
+    "policyHash": { "type": "string" },
+    "eventCount": { "type": "number" },
+    "traceHash": { "type": "string" },
+    "latestEventHash": { "type": "string" },
+    "publicEvents": { "type": "array", "items": { "type": "object" } },
+    "ownerTraceCommitment": { "type": ["string", "null"] },
+    "privacyProfile": { "type": "string" },
+    "exportedAt": { "type": "string" }
+  }
+}

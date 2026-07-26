@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/browser-profile.schema.json",
+  "type": "object",
+  "required": ["version", "profileId", "profileHash", "missionIdHash", "capabilityHash", "policyHash", "runnerType", "holderKeyCommitment", "sessionCommitment", "tabCommitment", "currentUrlHash", "currentDomainHash", "pageStateClass", "safeNextActionScore", "stopReason", "allowedActionHashes", "allowedDomainHashes", "privacyProfile", "createdAt"],
+  "properties": {
+    "version": { "const": "mba-browser-mission-profile-v1" },
+    "profileId": { "type": "string" },
+    "profileHash": { "type": "string" },
+    "missionIdHash": { "type": "string" },
+    "capabilityHash": { "type": "string" },
+    "policyHash": { "type": "string" },
+    "runnerType": { "type": "string" },
+    "runtimeId": { "type": "string" },
+    "extensionIdHash": { "type": "string" },
+    "holderKeyCommitment": { "type": "string" },
+    "sessionCommitment": { "type": "string" },
+    "tabCommitment": { "type": "string" },
+    "currentUrlHash": { "type": "string" },
+    "currentDomainHash": { "type": "string" },
+    "pageStateClass": { "type": "string" },
+    "safeNextActionScore": { "type": "number" },
+    "recommendedAction": { "type": ["string", "null"] },
+    "stopReason": { "type": "string" },
+    "checkoutCheckpoint": { "type": ["string", "null"] },
+    "allowedActionHashes": { "type": "array", "items": { "type": "string" } },
+    "allowedDomainHashes": { "type": "array", "items": { "type": "string" } },
+    "requiredCheckpoints": { "type": "array", "items": { "type": "string" } },
+    "privacyProfile": { "type": "string" },
+    "createdAt": { "type": "string" }
+  }
+}

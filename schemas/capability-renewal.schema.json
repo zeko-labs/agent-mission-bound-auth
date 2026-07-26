@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/capability-renewal.schema.json",
+  "type": "object",
+  "required": ["version", "renewalId", "renewalHash", "missionIdHash", "previousCapabilityHash", "renewedCapabilityHash", "holderKeyCommitment", "previousJti", "renewedJti", "renewalCounter", "renewalReason", "issuedAt", "expiresAt"],
+  "properties": {
+    "version": { "const": "mission-bound-capability-renewal-v1" },
+    "renewalId": { "type": "string" },
+    "renewalHash": { "type": "string" },
+    "missionIdHash": { "type": "string" },
+    "previousCapabilityHash": { "type": "string" },
+    "renewedCapabilityHash": { "type": "string" },
+    "holderKeyCommitment": { "type": "string" },
+    "previousJti": { "type": "string" },
+    "renewedJti": { "type": "string" },
+    "renewalCounter": { "type": "number" },
+    "renewalReason": { "type": "string" },
+    "issuedAt": { "type": "string" },
+    "expiresAt": { "type": "string" }
+  }
+}

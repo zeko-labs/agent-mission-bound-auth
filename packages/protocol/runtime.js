@@ -2,8 +2,20 @@ import { timingSafeEqual } from "node:crypto";
 
 export function isProductionProfile(env = process.env) {
   return env.MISSION_AUTH_PROFILE === "production" ||
+    env.MISSION_AUTH_PROFILE === "production_strict" ||
     env.NODE_ENV === "production" ||
     env.DEMO_MODE === "false";
+}
+
+export function verifierMode(options = {}, env = process.env) {
+  return options.verifierMode ??
+    env.MBA_VERIFIER_MODE ??
+    (env.MISSION_AUTH_PROFILE === "production_strict" ? "production_strict" : null) ??
+    (isProductionProfile(env) ? "production" : "compatibility");
+}
+
+export function isProductionStrictVerifier(options = {}, env = process.env) {
+  return verifierMode(options, env) === "production_strict";
 }
 
 export function isDemoMode(env = process.env) {

@@ -1,9 +1,23 @@
 import { id, sha256Hex } from "./digest.js";
 import { verifyTraceChain } from "./boundary-events.js";
+import { isProductionStrictVerifier } from "./runtime.js";
 
 export const PRODUCTION_FINAL_SETTLEMENT_STATES = new Set([
   "settlement_release_allowed",
   "settled"
+]);
+
+export const RECEIPT_SETTLEMENT_STATES = new Set([
+  "receipt_created",
+  "proof_prepared",
+  "proof_verified",
+  "anchor_prepared",
+  "anchored",
+  "settlement_release_allowed",
+  "settled",
+  "disputed",
+  "expired",
+  "failed"
 ]);
 
 function receiptIdentityBody(body) {
@@ -104,12 +118,26 @@ export function verifyReceipt(receipt, options = {}) {
   if (!receipt.nullifier) {
     return { valid: false, reason: "Receipt missing nullifier." };
   }
+  if (!RECEIPT_SETTLEMENT_STATES.has(receipt.settlementState)) {
+    return { valid: false, reason: "Receipt has unsupported settlementState." };
+  }
   if (
     !options.allowAnchorPrepared &&
     PRODUCTION_FINAL_SETTLEMENT_STATES.has(receipt.settlementState) &&
     !receipt.anchor
   ) {
     return { valid: false, reason: "Production-final receipts require anchor evidence." };
+  }
+  if (isProductionStrictVerifier(options, options.env ?? process.env)) {
+    if (receipt.holder?.proofScheme !== "ed25519-holder-proof-v1") {
+      return { valid: false, reason: "production_strict receipts require ed25519-holder-proof-v1 or stronger holder proof." };
+    }
+    if (!receipt.proof?.statementHash || !receipt.proof?.proofSystem) {
+      return { valid: false, reason: "production_strict receipts require proof statement evidence." };
+    }
+    if (!receipt.anchor) {
+      return { valid: false, reason: "production_strict receipts require Zeko anchor evidence." };
+    }
   }
   return {
     valid: true,
@@ -118,4 +146,11 @@ export function verifyReceipt(receipt, options = {}) {
     nullifier: receipt.nullifier,
     settlementState: receipt.settlementState
   };
+}
+
+export function verifyProductionStrictReceipt(receipt, options = {}) {
+  return verifyReceipt(receipt, {
+    ...options,
+    verifierMode: "production_strict"
+  });
 }
