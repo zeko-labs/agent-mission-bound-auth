@@ -2,7 +2,7 @@
   "name": "agent-mission-bound-auth",
   "version": "0.1.0",
   "private": true,
-  "license": "BUSL-1.1",
+  "license": "Apache-2.0",
   "type": "module",
   "description": "Mission-bound authorization protocol for delegated and autonomous agents with x402 payments and Zeko anchoring.",
   "bin": {
