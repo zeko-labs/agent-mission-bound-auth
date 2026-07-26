@@ -1,6 +1,6 @@
 # Agent Mission-Bound Auth
 
-Protocol sidecar and source-available reference implementation for delegated
+Protocol sidecar and open-source reference implementation for delegated
 and autonomous agents.
 
 It binds enterprise identity to a specific mission, signs the approval, enforces checkpoints before side effects, links x402 payment context, and emits portable receipts that can be independently verified and anchored on Zeko.
@@ -224,27 +224,11 @@ The repeatable build and review playbook is packaged as a local Codex skill:
 
 ## License
 
-Agent Mission-Bound Auth is part of the Zeko Agent Bundle. Protected
-product/protocol-layer code is licensed under BUSL-1.1 with the Zeko Additional
-Use Grant. Adoption-layer materials may be Apache-2.0 or MIT where expressly
-marked.
+Agent Mission-Bound Auth is licensed under the Apache License, Version 2.0. See
+[LICENSE](./LICENSE) and [LICENSING.md](./LICENSING.md).
 
-The current Change Date is 2030-07-17, and the Change License is Apache
-License, Version 2.0. Non-production/testnet use is free under the Additional
-Use Grant. Production Agent Bundle deployments require the self-serve
-commercial deployment license unless an Additional Free Use applies.
-
-Standard self-serve pricing is published in [PRICING.md](./PRICING.md):
-
-- Protocol Layer Production Deployments: $1,000/year per production rollup for
-  1-10 production rollups; 11+ production rollups use custom pricing.
-- Agent Bundle Production Deployments: $1,000/year per deploying legal entity
-  per Deployment Network.
-
-The self-serve commercial deployment license covers license rights only.
-Managed deployment, enterprise support, compliance review, SLAs, custom
-integrations, and dedicated infrastructure are separate commercial services.
-
-See [LICENSING.md](./LICENSING.md), [LICENSE](./LICENSE),
-[LICENSES/ZEKO-ADDITIONAL-USE-GRANT.md](./LICENSES/ZEKO-ADDITIONAL-USE-GRANT.md),
-[COMMERCIAL-TERMS.md](./COMMERCIAL-TERMS.md), and [PRICING.md](./PRICING.md).
+The source code, SDK surfaces, schemas, examples, and documentation are open
+source and intended for broad use, extension, self-hosting, and integration.
+Zeko Labs may offer hosted services, managed deployments, enterprise support,
+compliance review, SLAs, custom integrations, and dedicated infrastructure as
+separate commercial services. For those services, contact partnerships@zeko.io.
