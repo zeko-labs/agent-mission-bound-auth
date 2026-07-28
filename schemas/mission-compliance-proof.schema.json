@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zeko.io/mba/schemas/mission-compliance-proof.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "proofSystem",
+    "circuitDigest",
+    "verificationKeyHash",
+    "publicStatement",
+    "proof",
+    "artifactHash"
+  ],
+  "properties": {
+    "version": { "const": "mba-mission-compliance-proof-v1" },
+    "proofSystem": { "const": "zeko-o1js-mission-compliance-v1" },
+    "circuitDigest": { "type": "string", "minLength": 1 },
+    "verificationKeyHash": { "type": "string", "pattern": "^[0-9]+$" },
+    "publicStatement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missionIdHash",
+        "authCommitment",
+        "capabilityCommitment",
+        "policyCommitment",
+        "approvalCommitment",
+        "holderKeyCommitment",
+        "domainVerifierKeyCommitment",
+        "allowedActionsRoot",
+        "allowedDomainsRoot",
+        "datasetCommitment",
+        "domainProofCommitment",
+        "outputCommitment",
+        "paymentContextDigest",
+        "traceRoot",
+        "receiptCommitment",
+        "nullifier",
+        "validUntilSlot",
+        "lastObservedSlot",
+        "maxSpendMicrousd",
+        "totalSpendMicrousd",
+        "eventCount",
+        "beneficiary",
+        "payoutNanomina",
+        "protocolFeeNanomina"
+      ],
+      "properties": {
+        "missionIdHash": { "$ref": "#/$defs/field" },
+        "authCommitment": { "$ref": "#/$defs/field" },
+        "capabilityCommitment": { "$ref": "#/$defs/field" },
+        "policyCommitment": { "$ref": "#/$defs/field" },
+        "approvalCommitment": { "$ref": "#/$defs/field" },
+        "holderKeyCommitment": { "$ref": "#/$defs/field" },
+        "domainVerifierKeyCommitment": { "$ref": "#/$defs/field" },
+        "allowedActionsRoot": { "$ref": "#/$defs/field" },
+        "allowedDomainsRoot": { "$ref": "#/$defs/field" },
+        "datasetCommitment": { "$ref": "#/$defs/field" },
+        "domainProofCommitment": { "$ref": "#/$defs/field" },
+        "outputCommitment": { "$ref": "#/$defs/field" },
+        "paymentContextDigest": { "$ref": "#/$defs/field" },
+        "traceRoot": { "$ref": "#/$defs/field" },
+        "receiptCommitment": { "$ref": "#/$defs/field" },
+        "nullifier": { "$ref": "#/$defs/field" },
+        "validUntilSlot": { "$ref": "#/$defs/uint" },
+        "lastObservedSlot": { "$ref": "#/$defs/uint" },
+        "maxSpendMicrousd": { "$ref": "#/$defs/uint" },
+        "totalSpendMicrousd": { "$ref": "#/$defs/uint" },
+        "eventCount": { "$ref": "#/$defs/uint" },
+        "beneficiary": { "type": "string", "pattern": "^B62" },
+        "payoutNanomina": { "$ref": "#/$defs/uint" },
+        "protocolFeeNanomina": { "$ref": "#/$defs/uint" }
+      }
+    },
+    "proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publicInput", "publicOutput", "maxProofsVerified", "proof"],
+      "properties": {
+        "publicInput": { "type": "array", "items": { "$ref": "#/$defs/field" } },
+        "publicOutput": { "type": "array", "items": { "$ref": "#/$defs/field" } },
+        "maxProofsVerified": { "type": "integer", "minimum": 0, "maximum": 2 },
+        "proof": { "type": "string", "minLength": 1 }
+      }
+    },
+    "artifactHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "$defs": {
+    "field": { "type": "string", "pattern": "^[0-9]+$" },
+    "uint": { "type": "string", "pattern": "^[0-9]+$" }
+  }
+}

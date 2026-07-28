@@ -1,146 +1,98 @@
-# Security Notes
+# Security Architecture
 
-## Demo Keys
+## Identity
 
-The default mission-authority key is embedded for local demonstration only.
+MBA verifies OIDC authorization-code responses with PKCE, state, nonce, pinned
+issuer and audience, expiry, and provider JWKS. Auth0, Okta, and configured
+OIDC providers enter the same normalizer. Production rejects unmapped subjects.
 
-Production deployments must run with `MISSION_AUTH_PROFILE=production` and `DEMO_MODE=false`.
-For settlement release paths and browser/helper-agent production flows, use
-`MBA_VERIFIER_MODE=production_strict`.
-They must set:
+The callback issues `mba-enterprise-identity-attestation-v1`, signed by the MBA
+authority. Production passports and approvals require that attestation.
+Production capabilities bind its hash and auth commitment, the signed approval,
+policy, agent, Ed25519 checkpoint key, mission, budget, rails, and expiry. The
+Zeko settlement profile additionally binds the Pallas holder key, trusted
+domain verifier, proof statement, beneficiary, payout, and protocol fee.
 
-```text
-ZK_OAUTH_ISSUER_SECRET
-MISSION_AUTHORITY_PRIVATE_JWK
-MISSION_APPROVAL_BEARER_TOKEN
-```
+## Keys
 
-from a secret manager or HSM-backed key source.
+- OIDC keys remain with the provider.
+- `MISSION_AUTHORITY_PRIVATE_JWK` signs portable identity, passport, approval,
+  and capability objects.
+- `MISSION_AUTHORITY_ZEKO_PRIVATE_KEY` authorizes registry approval and
+  revocation changes in the Zeko settlement profile.
+- `ZKAPP_PRIVATE_KEY` authorizes MissionRegistry deployment and one-time
+  configuration.
+- payer keys fund escrows; no payer key is required to submit a valid
+  settlement proof.
 
-## Enterprise Identity
+Production keys belong in isolated KMS/HSM, wallet, or signing-service
+boundaries. Verification-key hash and circuit digest must be pinned.
 
-SAML/OIDC providers remain the upstream source of enterprise identity.
+## Runtime Enforcement
 
-Production deployments should configure:
+Holder boundary events use public-key proofs. `production_strict` rejects
+digest compatibility proofs. Stateful enforcement requires execution and
+idempotency identifiers and applies exact integer microusd accounting. The JSON
+state implementation is a sidecar reference; multi-instance production systems
+must use transactional storage and serialized updates.
 
-```text
-OIDC_ISSUER
-OIDC_AUDIENCE
-OIDC_JWKS_URL
-```
+Portable passports bind the Ed25519 checkpoint key to the agent identity.
+Zeko-settlement passports bind the Ed25519 and Pallas proof keys to the same
+identity, and the capability carries the authority-signed Zeko binding.
+Settlement accepts domain attestations only from Pallas keys listed in
+`DOMAIN_VERIFIER_PALLAS_PUBLIC_KEYS_JSON`.
 
-The OIDC callback path requires an ID token, validates JWKS signatures, issuer,
-client-id audience, expiry, and nonce, then normalizes provider claims before
-creating commitments. Access tokens should be handled by protected resource
-APIs, not as agent identity tokens.
+## ZK And Settlement
 
-Production commitment construction pins verification to configured provider
-trust roots. Request-supplied issuer, audience, and JWKS URLs are ignored in
-production because they would let a caller bring their own signing authority.
+The MissionCompliance proof covers action/domain membership, holder signatures,
+the trusted domain-verifier signature, trace continuity, expiry, aggregate
+budget, and all public settlement commitments. MissionRegistry checks approval,
+revocation, nullifier, receipt, and escrow witnesses before atomic payout and
+fee release.
 
-Map provider subjects into internal agent records with `AGENT_MAPPINGS_JSON`.
-Use `provider:issuer:subject` as the stable key.
-In production, unmapped subjects are rejected and server-side mappings take
-precedence over token-supplied agent identifiers.
+A receipt hash or JSON anchor never authorizes production settlement by itself.
+Release requires:
 
-## Key Rotation
+1. strict receipt structure;
+2. concrete o1js proof verification against the trusted key;
+3. signed capability verification against the trusted mission-authority JWKS;
+4. field-for-field capability, receipt, and proof statement matching;
+5. domain proof evidence verification against the committed evidence and
+   trusted Pallas attestation;
+6. chain-backed Zeko transaction and registry verification; and
+7. the same unspent nullifier in the capability binding, receipt, proof, and
+   registry transition.
 
-The JWKS endpoint supports key IDs. Production should publish overlapping old/new keys during rotation and include issuer metadata in discovery.
+Portable authorization does not claim settlement finality. Its assurance ends
+at signed identity, capability, holder event, replay, budget, and application
+checkpoint verification. It requires neither a TEE nor a central compute
+operator.
 
-## Replay
+## x402
 
-Mission approvals include:
+MBA uses x402 v2 `PAYMENT-REQUIRED`, `PAYMENT-SIGNATURE`, and
+`PAYMENT-RESPONSE`, CAIP-2 network IDs, and integer base-unit amounts. Mock
+payments and the legacy `PAYMENT` request header are rejected in production.
+When settlement is active, production sends the exact client `PaymentPayload` and the
+server-advertised `PaymentRequirements` to the configured facilitator's
+`/verify` and `/settle` endpoints. MBA binds the returned payer, network, and
+transaction into its receipt. The synchronous demo verifier fails closed in
+production so it cannot be mistaken for settlement.
 
-- mission hash
-- mission snapshot
-- expiry
-- approved tools/scopes/rails
-- approved checkpoints
+Portable mode advertises no payment rails and refuses the tutorial compute
+route instead of silently invoking a facilitator.
 
-Checkpoint verification enforces approval expiry, approval hash/id integrity,
-agent binding, dataset binding, operation binding, rail binding, action binding,
-scope binding, and checkpoint binding.
+## Privacy Boundary
 
-`/api/mission/verify-checkpoint` is stateless. It verifies the approval and
-returns the receipt shape without mutating replay, budget, ordering, or log
-state.
+Public artifacts contain commitments, roots, counters, public keys, and payout
+amounts. Raw IdP tokens, subjects, prompts, dataset rows, browser selectors,
+form values, credentials, and holder secrets do not belong in receipts or
+anchors. `nullifierSeed` is never exported by a capability.
 
-`/api/mission/enforce-checkpoint` is stateful. In production profile it requires
-`MISSION_APPROVAL_BEARER_TOKEN`, `missionExecutionId`, and an idempotency key for
-compute or side-effect checkpoints. Domain apps should include action-specific
-context in checkpoint verification and persist the resulting enforcement
-receipt.
+MBA proves mission compliance and a trusted verifier's attestation over the
+domain proof and output commitments. It does not prove that an LLM chose the
+best plan, that a merchant fulfilled an order, or that a domain verifier's
+implementation is sound.
 
-Budget counters are tracked per approval when `context.spendUsd` or
-`context.amountUsd` is supplied. In production, mission/enforcement state is
-persisted to `MISSION_STATE_PATH`.
-
-## Browser Helper Agents
-
-Browser/helper agents should use `mba-browser-mission-profile-v1`,
-`mba-redacted-trace-v1`, `mba-human-handoff-v1`, and
-`mba-execution-bundle-v1`. Public exports must contain only commitments,
-hashes, canonical action vocabulary, stop reasons, and verifier links. Raw
-URLs, selectors, page text, form values, addresses, emails, and payment labels
-belong only in owner-controlled private traces.
-
-`production_strict` rejects demo digest proofs and compatibility holder proofs.
-It requires Ed25519 or stronger holder proofs, expiry, idempotency keys,
-holder-key commitments, proof statement evidence, and Zeko anchor evidence for
-final receipt verification.
-
-## Revocation
-
-The implementation includes an off-chain revocation registry for auth
-commitments. In production it persists to `REVOCATION_STATE_PATH`. Production
-should pair this with either:
-
-- short-lived approvals, or
-- an anchored revocation/root model.
-
-## What Is ZK Today
-
-Live Zeko anchoring exists for:
-
-- approval root updates
-- execution receipt root updates
-
-The current private-compute demo does not prove the computation itself in-circuit. It anchors commitments to the approval, data, policy, output, payment context, and receipt.
-
-## Payment Settlement
-
-Production x402 verification rejects mock facilitator payments. The current
-production path requires signed facilitator receipts with
-`X402_TRUST_FACILITATOR_RECEIPTS=true`, `X402_FACILITATOR_ISSUER`, and
-`X402_FACILITATOR_JWKS_JSON`. The signed receipt must bind request id, payment
-id, rail, network, amount, asset, payer, payee, authorization digest, and a
-transaction hash or settlement id.
-
-Settlement release requires an anchored receipt/root, a valid lifecycle
-transition to `settlement_release_allowed`, an unused nullifier, and policy
-approval for the payment rail.
-
-## What Is Not Yet Production-Hardened
-
-- hosted facilitator settlement for every payment rail
-- production persistence for roots and witnesses
-- HSM/KMS integration for mission-authority keys
-- on-chain revocation root
-
-## Production Checklist
-
-- Store `MISSION_AUTHORITY_PRIVATE_JWK` in KMS/HSM-backed secret storage.
-- Set `MISSION_AUTH_PROFILE=production` and `DEMO_MODE=false`.
-- Set `ZK_OAUTH_ISSUER_SECRET` and `MISSION_APPROVAL_BEARER_TOKEN`.
-- Set `MISSION_STATE_PATH` and `REVOCATION_STATE_PATH`.
-- Publish overlapping JWKS keys during rotation.
-- Set `OIDC_ISSUER`, `OIDC_AUDIENCE`, and `OIDC_JWKS_URL`.
-- Configure `AGENT_MAPPINGS_JSON` for each enterprise customer subject mapping.
-- Persist missions, approvals, revocations, enforcement receipts, and Zeko root witnesses.
-- Enforce short approval TTLs for autonomous agents.
-- Use capability renewal instead of long-lived autonomous-agent capabilities.
-- Run browser/helper-agent settlement paths in `production_strict` verifier mode.
-- Require signed facilitator receipts or live chain verification for x402 payments.
-- Set `PRIVATE_COMPUTE_MIN_COHORT` for aggregate-only output policy.
-- Anchor approval roots and receipt roots on Zeko on a repeatable operator schedule.
-- Run remote conformance against every deployment.
+See [SECURITY.md](../SECURITY.md) for vulnerability reporting and the
+[threat model](./threat-model.md) for actor assumptions.

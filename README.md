@@ -1,226 +1,237 @@
 # Agent Mission-Bound Auth
 
-Protocol sidecar and source-available reference implementation for delegated
-and autonomous agents.
+Agent Mission-Bound Auth (MBA) is a source-available protocol kit for
+authorizing autonomous agent work by mission, proving compliance without
+revealing private inputs, and settling approved work on Zeko.
 
-It binds enterprise identity to a specific mission, signs the approval, enforces checkpoints before side effects, links x402 payment context, and emits portable receipts that can be independently verified and anchored on Zeko.
+The app in `apps/harness` is a local tutorial sidecar. The protocol, schemas,
+SDK, verifier, ZK program, and registry are the reusable product.
 
-The included private-compute UI is only a local tutorial harness. The protocol is the product.
+MBA has three adoption layers:
 
-## Network Profile
+- **Demo:** deterministic holder proofs, mock x402, and proofs-disabled local
+  simulation for tutorials and implementation testing.
+- **Portable authorization:** real OIDC, signed capabilities, Ed25519 boundary
+  events, replay and budget enforcement, and redacted browser/extension
+  receipts without a compute operator, TEE, x402 facilitator, or chain.
+- **Zeko settlement:** Pallas-bound domain verification, real compliance
+  proofs, x402 settlement, registry nullifiers, receipt anchors, escrow, and
+  conditional payouts.
 
-This demo is testnet-first by default. For mainnet, use a separate environment profile with official mainnet endpoints, a freshly deployed private-compute zkApp, fresh deployer/beneficiary keys, and production custody controls. Do not reuse the bundled testnet zkApp address or local tutorial values on mainnet. See [Zeko Mainnet Readiness](../docs/zeko-mainnet-readiness.md).
+See [protocol profiles](./docs/profiles.md) for guarantees and configuration.
 
-## What It Provides
+## What MBA Solves
 
-- Real OIDC login through Auth0, Okta, or any configured OIDC provider.
-- Agent passports that say who the agent is, who it represents, and who vouches for it.
-- Mission-bound approvals with signed snapshots of task, tools, scopes, rails, budget, and expiry.
-- Stateless checkpoint verification for external apps and bearer-gated checkpoint enforcement for mission-authority state.
-- Portable `zk-mission-bundle-v1` exports with offline JWKS verification.
-- Portable `mission-bound-auth-receipt-v1` exports with trace, payment, policy, nullifier, and anchor linkage.
-- Browser mission profiles, redacted trace exports, human handoff receipts, and portable execution bundles for browser/helper agents.
-- Capability renewal for short-lived mission authority without widening holder, mission, domain, action, rail, or spend scope.
-- `production_strict` verifier mode for strong holder proof, expiry, idempotency, receipt proof evidence, and Zeko anchor enforcement.
-- Public `mba` verifier CLI for receipts, traces, anchors, and settlement state.
-- x402 rail metadata for Zeko, Ethereum, Base, Arc preview, and Tempo preview.
-- Zeko approval/receipt anchoring scripts for production on-chain audit roots.
-- Production profile that disables demo minting, pins OIDC trust roots, requires authority tokens, rejects mock settlement, and enforces durable replay/budget checks.
+- **Agent identity:** verifies Auth0, Okta, or generic OIDC tokens against
+  discovery and JWKS, then issues a signed enterprise identity attestation.
+- **Agent scope:** binds identity, agent, Ed25519 checkpoint key, Pallas proof
+  key, task, actions, domains, data scopes, rails, budget, approval, and expiry
+  into a signed capability.
+- **Agent approval:** records an authority-signed approval commitment in the
+  Zeko MissionRegistry.
+- **Agent enforcement:** proves holder-signed boundary events stayed within
+  action, domain, expiry, trace, and aggregate-spend constraints.
+- **Agent commerce:** binds x402 v2 payment context and a trusted domain
+  verifier attestation to the proof, then atomically releases the beneficiary
+  payout and protocol fee only once.
 
-## Repository Layout
+## Zeko Core
 
-```text
-packages/protocol      core protocol objects, OIDC, missions, x402 rails, digests
-packages/sdk           client and offline verification helpers
-apps/harness           local tutorial sidecar and private-compute example
-apps/external-starter  minimal external app that verifies mission checkpoints
-schemas                portable object schemas
-scripts                smoke, conformance, OAuth, and Zeko anchoring scripts
-zkapp                  Zeko zkApp source
-```
+`zkapp/MissionComplianceProgram.ts` proves a bounded mission trace. Its public
+statement includes the identity, capability, policy, approval, holder, trusted
+domain verifier, dataset, domain-proof, output, payment, receipt, nullifier,
+beneficiary, payout, and fee commitments. Private witnesses include holder
+identity, a domain-verifier signature, commitment secrets, and boundary events.
 
-## Run Locally
+`zkapp/MissionRegistry.ts` maintains one namespaced Merkle root for approvals,
+revocations, nullifiers, receipts, and mission escrows. Settlement verifies the
+proof, consumes the nullifier, records the receipt, closes the escrow, and pays
+the beneficiary and fee recipient in one Zeko transaction.
+
+MBA proves mission-policy compliance and that a mission-approved Pallas domain
+verifier attested to the exact dataset, domain proof, and output commitments.
+Production receipt verification also runs the domain-specific verifier against
+the disclosed proof evidence before declaring settlement valid.
+
+## Quick Start
 
 ```bash
 npm install
 npm start
 ```
 
-Open:
-
-```text
-http://127.0.0.1:8787
-```
-
-## Configure Identity Providers
-
-Local env lives in `.env.local` and must not be committed.
-
-Auth0:
+Open `http://127.0.0.1:8787`.
 
 ```bash
-AUTH0_ISSUER=https://your-tenant.us.auth0.com/
-AUTH0_DOMAIN=your-tenant.us.auth0.com
+npm run test:demo
+npm run test:portable
+npm run test:ci
+npm run test:zeko-inputs
+```
+
+Generate and verify real proofs separately because compilation is expensive:
+
+```bash
+npm run zkapp:compile-proof-system -- --out build/mission-compliance-vk.json
+npm run test:zkapp-trustless:proofs
+```
+
+## Enterprise OIDC
+
+Keep provider credentials in `.env.local`; never commit them.
+
+```bash
+AUTH0_ISSUER=https://tenant.us.auth0.com/
 AUTH0_CLIENT_ID=...
 AUTH0_CLIENT_SECRET=...
-```
 
-Auth0 SPA callback settings:
-
-```text
-Allowed Callback URLs: http://127.0.0.1:8787
-Allowed Logout URLs: http://127.0.0.1:8787
-Allowed Web Origins: http://127.0.0.1:8787
-```
-
-Okta:
-
-```bash
-OKTA_ISSUER=https://your-okta-domain.okta.com
+OKTA_ISSUER=https://tenant.okta.com
 OKTA_CLIENT_ID=...
 OKTA_CLIENT_SECRET=...
-OKTA_SCOPE=openid profile email
 ```
 
-Use the Okta org issuer for general SSO. Use `/oauth2/default` only after configuring an Okta authorization-server access policy for this client.
+Provider callback:
 
-Additional customer IdPs can be configured without code changes:
-
-```bash
-OIDC_PROVIDERS_JSON='[{"provider":"customer-a","issuer":"https://idp.example.com","clientId":"...","clientSecret":"...","scope":"openid profile email"}]'
+```text
+http://127.0.0.1:8787/api/oauth/callback
 ```
 
-## Core Endpoints
+For portable production authorization, start from `.env.portable.example`.
+It uses `MISSION_AUTH_PROFILE=portable` and
+`MISSION_SETTLEMENT_PROFILE=none`.
+
+For full Zeko settlement, set `MISSION_AUTH_PROFILE=production`,
+`MISSION_SETTLEMENT_PROFILE=zeko`, `DEMO_MODE=false`, `PUBLIC_BASE_URL`,
+`MISSION_AUTHORITY_PRIVATE_JWK`,
+`MISSION_APPROVAL_BEARER_TOKEN`, `ZK_OAUTH_ISSUER_SECRET`, durable state paths,
+server-side `AGENT_MAPPINGS_JSON`, and
+`DOMAIN_VERIFIER_PALLAS_PUBLIC_KEYS_JSON`. Production passport and approval
+issuance requires the signed identity attestation returned by the verified OIDC
+callback. See [OAuth setup](./docs/oauth-sandbox.md).
+
+## Proof Input Compiler
+
+`prepareMissionComplianceBinding` creates the authority-visible Zeko binding
+and holder-private witness material. `createDomainProofAttestation` lets an
+approved domain verifier attest the exact proof evidence and output.
+`buildMissionComplianceInputs` validates both keys and compiles canonical
+allowlist roots, signatures, trace, spend, nullifier, and receipt values into
+the o1js public input and witness.
+
+```js
+const prepared = await prepareMissionComplianceBinding({
+  holderPrivateKey,
+  domainVerifierPublicKey,
+  beneficiary,
+  missionIdHash,
+  authCommitment,
+  principalHash,
+  agentId,
+  datasetId,
+  dataScopes,
+  allowedActions,
+  allowedDomains,
+  validUntilSlot,
+  maxSpendUsd,
+  payoutMina,
+  protocolFeeMina
+});
+```
+
+The mission authority signs `prepared.binding` inside the capability. Keep
+`prepared.privateWitnessMaterial` in the holder's protected runtime.
+
+## Protocol Endpoints
 
 ```text
 GET  /.well-known/agent-authorization.json
 GET  /.well-known/mission-authority-jwks.json
-GET  /api/oauth/providers
-GET  /api/oauth/login?provider=auth0|okta|customer-a
+GET  /api/oauth/login?provider=auth0|okta|customer-idp
 GET  /api/oauth/callback
 POST /api/agents/passport
 POST /api/missions/propose
 POST /api/missions/approve
+POST /api/capabilities/issue
 POST /api/mission/verify-checkpoint
 POST /api/mission/enforce-checkpoint
 POST /api/mission/export-bundle
 ```
 
-`verify-checkpoint` is stateless and safe for external apps that need to decide whether an action is allowed. `enforce-checkpoint` mutates replay, ordering, budget, and enforcement-log state; in production it requires `MISSION_APPROVAL_BEARER_TOKEN`.
+`verify-checkpoint` performs portable authorization checks.
+`enforce-checkpoint` also mutates replay, ordering, and exact microusd budget
+state and is bearer-gated in production.
 
-## SDK Usage
+## x402 v2
 
-```js
-import { ZkMissionAuthClient, verifyMissionBundle } from "agent-mission-bound-auth/sdk";
+MBA's x402 adapter emits `PAYMENT-REQUIRED`, accepts `PAYMENT-SIGNATURE`, and returns
+`PAYMENT-RESPONSE`. Amounts are integer asset base units and networks use CAIP-2
+identifiers. Ethereum and Base use the EVM facilitator path. Arc and Tempo are
+clearly marked preview rails until their production facilitator adapters and
+end-to-end chain tests are configured. In production, MBA submits the selected
+payment payload and the verbatim advertised requirement to the facilitator's
+`/verify` and `/settle` endpoints before issuing its payment receipt.
 
-const auth = new ZkMissionAuthClient({ baseUrl: "http://127.0.0.1:8787" });
-const discovery = await auth.discover();
-const jwks = await auth.jwks();
+The adapter does not modify or fork the x402 protocol. Portable authorization
+does not advertise settlement rails and does not call a facilitator.
 
-const { agentPassport } = await auth.createAgentPassport({ agentId: "agent-1" });
-const { mission } = await auth.proposeMission({
-  agentId: agentPassport.agentId,
-  task: "Send the approved report",
-  operation: "email-send",
-  datasetId: "customer-report",
-  allowedTools: ["email.send"],
-  allowedScopes: ["dataset:customer-report"],
-  allowedRails: ["base"]
-});
-const { approval } = await auth.approveMission({ missionId: mission.missionId });
+## Zeko Operations
 
-await auth.verifyCheckpoint({
-  checkpoint: "before_external_side_effect",
-  approval,
-  context: {
-    agentId: mission.agentId,
-    datasetId: mission.datasetId,
-    operation: mission.operation,
-    action: "email.send",
-    missionExecutionId: "exec-123",
-    idempotencyKey: "email-123"
-  }
-});
-
-const { bundle } = await auth.exportBundle({ agentPassport, mission, approval });
-verifyMissionBundle(bundle, jwks);
-```
-
-## Checks
+The frozen v0 `PrivateComputeAccess` contract remains in the repository for
+source and deployed-contract compatibility. Its state and verification key are
+not compatible with `MissionRegistry`; deploy a fresh zkApp key for trustless
+settlement v1. See the
+[v0 deployment record](./docs/legacy-private-compute-access-v0.md).
 
 ```bash
-npm test
-npm run smoke:protocol
-npm run test:conformance
-npm run test:browser-helper-conformance
-npm run test:protocol-bindings
-npm run test:conformance:remote
-npm run test:oauth-sandbox
-npm run oauth:sandbox-doctor
-npm run test:production-hardening
+npm run zkapp:deploy
+npm run zkapp:anchor-approval
+npm run zkapp:revoke-capability
+npm run zkapp:fund-mission
+npm run zkapp:settle-mission
+npm run zkapp:refund-mission
+npm run zkapp:get-state
 ```
 
-## Deploy As A Sidecar
+Scripts consume JSON from stdin and maintain
+`MISSION_REGISTRY_STATE_PATH`, an atomic local Merkle witness index. Production
+operators should place this index in transactional, access-controlled storage
+and serialize writers.
 
-Set a public URL and provider secrets in the host environment:
+## Verification
 
 ```bash
-PUBLIC_BASE_URL=https://auth-sidecar.example.com
-MISSION_AUTH_PROFILE=production
-DEMO_MODE=false
-ZK_OAUTH_ISSUER_SECRET=...
-MISSION_AUTHORITY_PRIVATE_JWK='{"kty":"EC","crv":"P-256",...}'
-MISSION_APPROVAL_BEARER_TOKEN=...
-MISSION_STATE_PATH=/var/lib/agent-mission-bound-auth/mission-state.json
-REVOCATION_STATE_PATH=/var/lib/agent-mission-bound-auth/revocation-state.json
-X402_TRUST_FACILITATOR_RECEIPTS=true
-X402_FACILITATOR_ISSUER=https://facilitator.example
-X402_FACILITATOR_JWKS_JSON='{"keys":[...]}'
+mba verify receipt receipt.json
+mba verify bundle execution-bundle.json
+mba verify trace trace.json
+mba verify anchor receipt.json anchor.json
+mba verify settlement receipt.json anchor.json \
+  --verification-key verification-key.json \
+  --authority-jwks authority-jwks.json \
+  --domain-verifier domain-verifier.mjs \
+  --graphql https://testnet.zeko.io/graphql \
+  --registry B62...
 ```
 
-Production `/api/oauth/zk-commit` verifies JWTs only against configured provider trust roots. Request-supplied issuer, audience, or JWKS URLs are ignored in production.
+A structurally valid receipt is not settlement authority. Production release
+requires a valid `mba-mission-compliance-proof-v1`, a trusted verification key,
+a trusted mission-authority JWKS, a trusted domain-verifier module, and
+chain-backed
+`mba-zeko-registry-anchor-v1` verification.
 
-Container build:
-
-```bash
-docker build -t agent-mission-bound-auth .
-docker run -p 8787:8787 --env-file .env.production agent-mission-bound-auth
-```
-
-For each customer IdP, add this callback URL:
+## Layout
 
 ```text
-https://auth-sidecar.example.com/api/oauth/callback
+packages/protocol  protocol objects, OIDC, x402, proof and chain verification
+packages/sdk       client and verifier exports
+zkapp              v0 compatibility contract, MissionCompliance, MissionRegistry
+schemas            strict portable artifact schemas
+scripts            conformance, adversarial, Zeko, and verifier tooling
+apps/harness       local tutorial sidecar
 ```
 
-No production Zeko operator is required for the local tutorial flow. Production deployments anchor mission approvals and receipt roots on Zeko with the scripts in `scripts/`.
-
-## Live Zeko Testnet App
-
-- zkApp: `B62qpBXMbrKVJwcS9wQN7SpFb6jkrXn2xrntCoM6D461qL2sYZarPHi`
-- beneficiary: `B62qjxFhBZ2W1jzMyAppBkD22gGN66gTRYpX9AyaC4Kwga1kbC8zLBN`
-- approval root: `18254630832314440409014986041827431424117053312046611743246600167702035963192`
-- receipt root: `2503101496281787741527009452532014343190670744041313963524602789905044535138`
-
-## Docs
-
-- [Protocol spec](./docs/spec.md)
-- [Generalized ZK architecture](./docs/generalized-zk-architecture.md)
-- [Threat model](./docs/threat-model.md)
-- [Portable receipt format](./docs/receipt-format.md)
-- [Boundary event vocabulary](./docs/boundary-events.md)
-- [Browser agent profile](./docs/browser-agent-profile.md)
-- [Helper agent starter contract](./docs/helper-agent-starter.md)
-- [Registry and nullifiers](./docs/registry-nullifiers.md)
-- [Public verifier CLI](./docs/verifier-cli.md)
-- [Integration guide](./docs/integration-guide.md)
-- [OAuth provider setup](./docs/oauth-sandbox.md)
-- [Security notes](./docs/security.md)
-
-## Codex Skill
-
-The repeatable build and review playbook is packaged as a local Codex skill:
-[skills/agent-mission-bound-auth/SKILL.md](./skills/agent-mission-bound-auth/SKILL.md)
+Start with the [protocol spec](./docs/spec.md),
+[threat model](./docs/threat-model.md), and
+[security policy](./SECURITY.md).
 
 ## License
 

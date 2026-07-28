@@ -1,5 +1,3 @@
-import "../../zeko-x402/node_modules/reflect-metadata/Reflect.js";
-
 import {
   Field,
   Permissions,
@@ -10,8 +8,12 @@ import {
   UInt64,
   method,
   state
-} from "../../zeko-x402/node_modules/o1js/dist/node/index.js";
+} from "o1js";
 
+/**
+ * Frozen v0 contract retained for source and deployed-contract compatibility.
+ * New trustless settlement deployments use MissionRegistry.
+ */
 export class PrivateComputeReceipt extends Struct({
   authCommitment: Field,
   datasetCommitment: Field,
@@ -50,19 +52,29 @@ export class PrivateComputeAccess extends SmartContract {
     this.beneficiary.set(beneficiary);
   }
 
-  @method async registerDatasetCommitment(previousRoot: Field, nextRoot: Field) {
+  @method async registerDatasetCommitment(
+    previousRoot: Field,
+    nextRoot: Field
+  ) {
     const currentRoot = this.datasetRoot.getAndRequireEquals();
     currentRoot.assertEquals(previousRoot);
     this.datasetRoot.set(nextRoot);
   }
 
-  @method async registerAuthCommitment(previousRoot: Field, nextRoot: Field) {
+  @method async registerAuthCommitment(
+    previousRoot: Field,
+    nextRoot: Field
+  ) {
     const currentRoot = this.authRoot.getAndRequireEquals();
     currentRoot.assertEquals(previousRoot);
     this.authRoot.set(nextRoot);
   }
 
-  @method async recordPrivateComputeReceipt(previousRoot: Field, nextRoot: Field, receipt: PrivateComputeReceipt) {
+  @method async recordPrivateComputeReceipt(
+    previousRoot: Field,
+    nextRoot: Field,
+    receipt: PrivateComputeReceipt
+  ) {
     const currentRoot = this.receiptRoot.getAndRequireEquals();
     currentRoot.assertEquals(previousRoot);
 

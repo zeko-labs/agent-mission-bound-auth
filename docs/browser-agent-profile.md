@@ -30,17 +30,30 @@ the capability, policy, browser profile, redacted trace, handoff receipt,
 portable receipt, Zeko registry anchor, settlement state, verifier links, and an
 owner-only trace commitment.
 
-## Production Strict
+## Portable Production
 
 Browser agents should run short-lived capabilities and renew them instead of
-keeping long authority windows open. Production-strict verification rejects
+keeping long authority windows open. Use `MISSION_AUTH_PROFILE=portable` and
+`MISSION_SETTLEMENT_PROFILE=none` for production browser or extension
+authorization without a settlement operator. Production-strict event
+verification rejects
 digest holder proofs and compatibility holder proofs. It requires a strong
-holder proof, expiry, idempotency key, holder key commitment, receipt proof
-statement evidence, and Zeko anchor evidence for finalized receipt exports.
+holder proof, expiry, idempotency key, and holder key commitment.
+
+The browser or extension generates and retains the Ed25519 holder private key.
+The mission authority binds its public-key commitment into the passport,
+approval, and capability. Domain applications verify signed boundary events at
+their side-effect checkpoints. Portable execution bundles can contain a
+browser profile, redacted trace, and human handoff without a payment receipt or
+Zeko anchor.
 
 Compatibility holder proofs such as `browser-helper-ed25519-pop-v1` are for
 staging migrations only. They are represented in the protocol so early
 integrations can be tested honestly, but `production_strict` rejects them.
+
+For `MISSION_SETTLEMENT_PROFILE=zeko`, finalized settlement receipts also
+require the MissionCompliance proof, proof-bound statement, domain evidence,
+signed capability, and Zeko anchor evidence.
 
 ## Browser Helper Flow
 
@@ -51,6 +64,9 @@ integrations can be tested honestly, but `production_strict` rejects them.
 4. Sign each boundary event with `ed25519-holder-proof-v1`.
 5. Export a redacted trace and handoff receipt if the run stops before login,
    payment, final submit, or a policy-conflict boundary.
-6. Build the portable receipt, anchor the receipt/root on Zeko, and export an
-   execution bundle.
+6. Export a portable execution bundle containing the redacted trace or handoff.
 7. Verify with `mba verify bundle execution-bundle.json`.
+
+For Zeko settlement, continue by building the proof-backed receipt, anchoring
+the receipt/root through MissionRegistry, and verifying the chain-backed
+settlement bundle.

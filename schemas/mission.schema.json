@@ -2,19 +2,32 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.com/schemas/mission.schema.json",
   "type": "object",
-  "required": ["version", "agentId", "task", "datasetId", "operation", "allowedTools", "allowedScopes", "constraints", "checkpoints", "expiresAt", "missionId", "missionHash"],
+  "additionalProperties": false,
+  "required": ["version", "agentId", "task", "datasetId", "operation", "allowedDomains", "allowedTools", "allowedScopes", "constraints", "checkpoints", "expiresAt", "missionId", "missionHash"],
   "properties": {
     "version": { "const": "mission-bound-agent-auth-v1" },
     "agentId": { "type": "string" },
+    "agentIdentifier": { "type": "string" },
+    "personOrOrg": { "type": "object" },
+    "title": { "type": "string" },
     "task": { "type": "string" },
     "datasetId": { "type": "string" },
     "operation": { "type": "string" },
+    "holderKeyCommitment": { "type": ["string", "null"] },
+    "zekoHolderKeyCommitment": { "type": ["string", "null"] },
+    "allowedDomains": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
     "allowedTools": { "type": "array", "items": { "type": "string" } },
     "allowedScopes": { "type": "array", "items": { "type": "string" } },
     "constraints": { "type": "object" },
     "checkpoints": { "type": "array", "items": { "type": "string" } },
-    "expiresAt": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
     "missionId": { "type": "string" },
-    "missionHash": { "type": "string" }
+    "missionHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "status": {
+      "type": "string",
+      "enum": ["proposed", "approved", "expired", "failed"]
+    },
+    "approvalId": { "type": "string" }
   }
 }

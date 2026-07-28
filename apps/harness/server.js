@@ -2,7 +2,7 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildPaymentRequirement, buildMockPayment, decodePaymentHeader, encodeRequirement, PAYMENT, PAYMENT_REQUIRED, PAYMENT_RESPONSE, verifyPayment } from "../../packages/protocol/x402.js";
+import { buildPaymentRequirement, buildMockPayment, buildPaymentResponse, decodePaymentHeader, encodeRequirement, paymentRailId, paymentRequirementId, PAYMENT_SIGNATURE, PAYMENT_REQUIRED, PAYMENT_RESPONSE, verifyAndSettlePayment } from "../../packages/protocol/x402.js";
 import { buildPolicy, loadDatasets, runPrivateCompute } from "./private-compute.js";
 import { issueZkOAuthProof, verifyZkOAuthProof } from "./zk-oauth.js";
 import { id, randomSalt } from "../../packages/protocol/digest.js";
@@ -16,16 +16,37 @@ import {
   buildAgentPassport,
   enforceCheckpoint,
   getApproval,
+  findAgentPassport,
   getMission,
   listEnforcementLog,
   listMissions,
   proposeMission,
-  verifyCheckpoint
+  verifyCheckpoint,
+  verifyMissionApproval
 } from "../../packages/protocol/missions.js";
 import { buildDiscoveryDocument, buildMissionBundle } from "../../packages/protocol/protocol-bundles.js";
 import { jwks } from "../../packages/protocol/authority-keys.js";
 import { loadLocalEnv } from "../../packages/protocol/env-local.js";
-import { isDemoMode, isProductionProfile, requireAuthorityBearer } from "../../packages/protocol/runtime.js";
+import {
+  isDemoMode,
+  isProductionProfile,
+  isSettlementEnabled,
+  isZekoSettlementProfile,
+  missionAuthProfile,
+  missionSettlementProfile,
+  requireAuthorityBearer
+} from "../../packages/protocol/runtime.js";
+import {
+  buildMissionCapability,
+  buildMissionPolicy
+} from "../../packages/protocol/capabilities.js";
+import {
+  validateZekoCapabilityBinding
+} from "../../packages/protocol/zeko-inputs.js";
+import {
+  verifyEnterpriseIdentityAttestation
+} from "../../packages/protocol/identity-attestations.js";
+import { sha256Hex } from "../../packages/protocol/digest.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -140,6 +161,13 @@ async function serveVendor(req, res) {
 }
 
 async function handleCompute(req, res) {
+  if (isProductionProfile() && !isSettlementEnabled()) {
+    sendJson(res, 409, {
+      error: "settlement_profile_disabled",
+      reason: "The tutorial compute route requires a settlement profile. Portable authorization remains available through mission and checkpoint endpoints."
+    });
+    return;
+  }
   const body = await readJson(req);
   const datasets = await loadDatasets();
   const dataset = datasets.find((item) => item.id === body.datasetId);
@@ -158,11 +186,22 @@ async function handleCompute(req, res) {
     policy
   };
   const requirement = buildPaymentRequirement(job);
-  pendingJobs.set(requirement.requestId, { job, requirement });
+  pendingJobs.set(paymentRequirementId(requirement), { job, requirement });
 
   const proof = body.zkOAuthProof;
-  const payment = decodePaymentHeader(req.headers[PAYMENT.toLowerCase()]);
-  const railId = payment?.railId ?? null;
+  const legacyPaymentHeader = req.headers.payment;
+  if (legacyPaymentHeader && isProductionProfile()) {
+    sendJson(res, 400, {
+      error: "legacy_x402_header_rejected",
+      reason: "x402 v2 requires PAYMENT-SIGNATURE."
+    });
+    return;
+  }
+  const payment = decodePaymentHeader(
+    req.headers[PAYMENT_SIGNATURE.toLowerCase()] ??
+    (isDemoMode() ? legacyPaymentHeader : null)
+  );
+  const railId = paymentRailId(payment);
   const auth = verifyZkOAuthProof(proof, {
     requiredScopes: policy.requiredScopes,
     railId
@@ -224,7 +263,7 @@ async function handleCompute(req, res) {
     return;
   }
 
-  const verifiedPayment = verifyPayment(requirement, payment);
+  const verifiedPayment = await verifyAndSettlePayment(requirement, payment);
   if (!verifiedPayment.ok) {
     sendJson(res, 402, { error: "payment_invalid", reason: verifiedPayment.reason, requirement }, { [PAYMENT_REQUIRED]: encodeRequirement(requirement) });
     return;
@@ -235,9 +274,9 @@ async function handleCompute(req, res) {
     approval: body.missionApproval,
     context: {
       ...missionContext,
-      railId: payment.railId,
-      paymentId: payment.paymentId,
-      idempotencyKey: payment.paymentId,
+      railId: verifiedPayment.paymentReceipt.railId,
+      paymentId: verifiedPayment.paymentReceipt.paymentId,
+      idempotencyKey: verifiedPayment.paymentReceipt.paymentId,
       action: "x402.settle"
     }
   });
@@ -282,7 +321,7 @@ async function handleCompute(req, res) {
         missionCommitment: missionCheck.missionCommitment
       }
     },
-    { [PAYMENT_RESPONSE]: JSON.stringify(verifiedPayment.paymentReceipt) }
+    { [PAYMENT_RESPONSE]: encodeRequirement(buildPaymentResponse(verifiedPayment.paymentReceipt)) }
   );
 }
 
@@ -404,6 +443,157 @@ async function route(req, res) {
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/capabilities/issue") {
+      if (!requireApprovalAuthority(req, res)) return;
+      const body = await readJson(req);
+      const identity = verifyEnterpriseIdentityAttestation(
+        body.identityAttestation
+      );
+      if (!identity.valid) {
+        sendJson(res, 403, {
+          error: "verified_identity_required",
+          reason: identity.reason
+        });
+        return;
+      }
+      const passport = body.agentPassport;
+      const approval = body.approval ?? getApproval(body.approvalId);
+      const mission = approval ? getMission(approval.missionId) : null;
+      if (!passport || !approval || !mission) {
+        sendJson(res, 400, {
+          error: "passport_approval_and_mission_required"
+        });
+        return;
+      }
+      const registeredPassport = findAgentPassport(passport.agentId);
+      const approvalCheck = verifyMissionApproval(approval, {
+        agentId: passport.agentId
+      });
+      if (
+        !approvalCheck.ok ||
+        !registeredPassport ||
+        registeredPassport.passportCommitment !==
+          passport.passportCommitment ||
+        passport.agentId !== identity.agentId ||
+        passport.identityAttestationHash !==
+          body.identityAttestation.attestationHash ||
+        mission.agentId !== passport.agentId
+      ) {
+        sendJson(res, 403, {
+          error: "identity_binding_mismatch",
+          reason: approvalCheck.reason
+        });
+        return;
+      }
+      const holderKeyCommitment =
+        body.holderKeyCommitment ??
+        passport.keyBinding?.holderKeyCommitment;
+      const zekoHolderPublicKey =
+        body.zekoBinding?.holderPublicKey ??
+        passport.keyBinding?.zekoHolderPublicKey;
+      const zekoHolderKeyCommitment =
+        body.zekoBinding?.holderKeyCommitment ??
+        passport.keyBinding?.zekoHolderKeyCommitment;
+      if (
+        !holderKeyCommitment ||
+        passport.keyBinding?.holderKeyCommitment !== holderKeyCommitment
+      ) {
+        sendJson(res, 403, {
+          error: "holder_key_binding_mismatch"
+        });
+        return;
+      }
+      if (isZekoSettlementProfile()) {
+        if (
+          !zekoHolderPublicKey ||
+          !zekoHolderKeyCommitment ||
+          passport.keyBinding?.zekoHolderPublicKey !==
+            zekoHolderPublicKey ||
+          passport.keyBinding?.zekoHolderKeyCommitment !==
+            zekoHolderKeyCommitment ||
+          mission.zekoHolderKeyCommitment !== zekoHolderKeyCommitment ||
+          approval.zekoHolderKeyCommitment !== zekoHolderKeyCommitment
+        ) {
+          sendJson(res, 403, {
+            error: "zeko_holder_key_binding_mismatch"
+          });
+          return;
+        }
+        const zekoBindingCheck = validateZekoCapabilityBinding(
+          body.zekoBinding,
+          {
+            missionIdHash: sha256Hex(mission.missionId),
+            authCommitment: identity.authCommitment,
+            allowedActions: approval.approvedTools,
+            allowedDomains: approval.approvedDomains ?? [],
+            maxSpendUsd: mission.constraints.maxSpendUsd,
+            zekoHolderPublicKey,
+            zekoHolderKeyCommitment
+          }
+        );
+        if (!zekoBindingCheck.valid) {
+          sendJson(res, 400, {
+            error: "invalid_zeko_capability_binding",
+            reason: zekoBindingCheck.reason
+          });
+          return;
+        }
+      }
+      if (
+        isProductionProfile() &&
+        !/^[0-9a-f]{64}$/.test(String(body.nullifierCommitment ?? ""))
+      ) {
+        sendJson(res, 400, {
+          error: "holder_nullifier_commitment_required"
+        });
+        return;
+      }
+      const policy = buildMissionPolicy({
+        missionId: mission.missionId,
+        task: mission.task,
+        allowedDomains: approval.approvedDomains ?? [],
+        allowedActions: approval.approvedTools,
+        dataScopes: approval.approvedScopes,
+        paymentRails: approval.approvedRails,
+        maxSpendUsd: mission.constraints.maxSpendUsd,
+        expiresAt: approval.expiresAt,
+        checkpoints: mission.checkpoints,
+        constraints: mission.constraints
+      });
+      const capability = buildMissionCapability({
+        issuer: `${baseUrl}/`,
+        audience: body.audience ?? "mission-verifier",
+        principalHash: sha256Hex(body.identityAttestation.source),
+        authCommitment: identity.authCommitment,
+        identityAttestationHash:
+          body.identityAttestation.attestationHash,
+        agentId: passport.agentId,
+        runtimeId: body.runtimeId ?? passport.agentId,
+        holderKeyCommitment,
+        ...(isZekoSettlementProfile()
+          ? { zekoBinding: body.zekoBinding }
+          : {}),
+        nullifierCommitment: body.nullifierCommitment,
+        missionId: mission.missionId,
+        missionIdHash: sha256Hex(mission.missionId),
+        approvalHash: approval.approvalHash,
+        policyHash: policy.policyHash,
+        allowedDomains: policy.allowedDomains,
+        allowedActions: policy.allowedActions,
+        dataScopes: policy.dataScopes,
+        paymentRails: policy.paymentRails,
+        maxSpendUsd: policy.maxSpendUsd,
+        expiresAt: new Date(
+          Math.min(
+            Date.parse(approval.expiresAt),
+            Date.parse(body.identityAttestation.expiresAt)
+          )
+        ).toISOString()
+      });
+      sendJson(res, 200, { policy, capability });
+      return;
+    }
+
     if (req.method === "GET" && url.pathname === "/api/missions") {
       if (isProductionProfile() && !requireApprovalAuthority(req, res)) return;
       sendJson(res, 200, { missions: listMissions() });
@@ -488,11 +678,19 @@ async function route(req, res) {
     }
 
     if (req.method === "GET" && url.pathname === "/.well-known/x402.json") {
+      const rails = enabledRails();
       sendJson(res, 200, {
         protocol: "x402",
         version: "2",
+        enabled: isDemoMode() || isSettlementEnabled(),
+        activeProfiles: {
+          auth: missionAuthProfile(),
+          settlement: missionSettlementProfile()
+        },
         serviceId: "agent-mission-bound-auth",
-        routes: [{ method: "POST", resource: "/api/compute", accepts: enabledRails() }],
+        routes: rails.length > 0
+          ? [{ method: "POST", resource: "/api/compute", accepts: rails }]
+          : [],
         features: ["402-response", "multi-rail", "zk-oauth", "private-compute", "programmable-privacy"]
       });
       return;

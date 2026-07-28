@@ -1,4 +1,4 @@
-import "../../zeko-x402/node_modules/reflect-metadata/Reflect.js";
+import "reflect-metadata";
 
 import {
   AccountUpdate,
@@ -7,95 +7,83 @@ import {
   PublicKey,
   UInt64,
   fetchAccount
-} from "../../zeko-x402/node_modules/o1js/dist/node/index.js";
-import { PrivateComputeAccess } from "../dist-zkapp/PrivateComputeAccess.js";
+} from "o1js";
+import {
+  MissionRegistry,
+  MissionRegistryConfig
+} from "../dist-zkapp/MissionRegistry.js";
+import {
+  requireEnv,
+  zekoNetwork
+} from "./lib/registry-state.mjs";
 
-function requireEnv(name) {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} is required.`);
-  }
-  return value;
-}
-
-async function accountExists(publicKey) {
-  try {
-    const result = await fetchAccount({ publicKey });
-    return !result.error;
-  } catch {
-    return false;
-  }
-}
-
-async function sleep(ms) {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function waitForAccountVisible(publicKey, attempts = 40, intervalMs = 3000) {
-  for (let index = 0; index < attempts; index += 1) {
-    if (await accountExists(publicKey)) {
-      return true;
-    }
-    await sleep(intervalMs);
-  }
-  return false;
-}
-
-const graphql = requireEnv("ZEKO_GRAPHQL").endsWith("/graphql")
-  ? requireEnv("ZEKO_GRAPHQL")
-  : `${requireEnv("ZEKO_GRAPHQL").replace(/\/$/, "")}/graphql`;
-const archive = process.env.ZEKO_ARCHIVE ?? "https://archive.testnet.zeko.io/graphql";
-const txFee = UInt64.from(process.env.TX_FEE ?? "2000000000");
-const deployerKey = PrivateKey.fromBase58(requireEnv("DEPLOYER_PRIVATE_KEY"));
+const network = zekoNetwork();
+const fee = UInt64.from(process.env.TX_FEE ?? "2000000000");
+const deployerKey = PrivateKey.fromBase58(
+  requireEnv("DEPLOYER_PRIVATE_KEY")
+);
 const zkappKey = PrivateKey.fromBase58(requireEnv("ZKAPP_PRIVATE_KEY"));
-const beneficiary = PublicKey.fromBase58(requireEnv("PRIVATE_COMPUTE_BENEFICIARY_PUBLIC_KEY"));
+const authorityKey = PublicKey.fromBase58(
+  process.env.MISSION_AUTHORITY_ZEKO_PUBLIC_KEY ??
+  PrivateKey.fromBase58(
+    requireEnv("MISSION_AUTHORITY_ZEKO_PRIVATE_KEY")
+  ).toPublicKey().toBase58()
+);
+const protocolFeeRecipient = PublicKey.fromBase58(
+  requireEnv(
+    "MISSION_PROTOCOL_FEE_RECIPIENT",
+    "PRIVATE_COMPUTE_BENEFICIARY_PUBLIC_KEY"
+  )
+);
 const deployer = deployerKey.toPublicKey();
 const zkappAddress = zkappKey.toPublicKey();
 
-Mina.setActiveInstance(Mina.Network({ mina: graphql, archive }));
-
-console.log("[private-compute:zkapp:deploy] compiling...");
-await PrivateComputeAccess.compile();
-
-const alreadyExists = await accountExists(zkappAddress);
-const zkapp = new PrivateComputeAccess(zkappAddress);
-
-console.log("[private-compute:zkapp:deploy] sending deploy transaction...");
-const deployTx = await Mina.transaction({ sender: deployer, fee: txFee }, async () => {
-  if (!alreadyExists) {
-    AccountUpdate.fundNewAccount(deployer);
-  }
-  await zkapp.deploy();
-});
-
-await deployTx.prove();
-deployTx.sign([deployerKey, zkappKey]);
-const sentDeploy = await deployTx.send();
-
-const visible = await waitForAccountVisible(zkappAddress);
-if (!visible) {
-  throw new Error(`zkApp account ${zkappAddress.toBase58()} not visible after deploy transaction.`);
+Mina.setActiveInstance(Mina.Network(network));
+await MissionRegistry.compile();
+const existing = await fetchAccount({ publicKey: zkappAddress });
+if (!existing.error) {
+  throw new Error(
+    `Account ${zkappAddress.toBase58()} already exists; use a fresh ZKAPP_PRIVATE_KEY for MissionRegistry.`
+  );
 }
 
+const registry = new MissionRegistry(zkappAddress);
+const deployTx = await Mina.transaction(
+  { sender: deployer, fee },
+  async () => {
+    AccountUpdate.fundNewAccount(deployer);
+    await registry.deploy();
+  }
+);
+await deployTx.prove();
+const deployResult = await deployTx.sign([deployerKey, zkappKey]).send();
+await deployResult.wait();
 await fetchAccount({ publicKey: zkappAddress });
 
-console.log("[private-compute:zkapp:deploy] sending configure transaction...");
-const configureTx = await Mina.transaction({ sender: deployer, fee: txFee }, async () => {
-  await zkapp.configureBeneficiary(beneficiary);
-});
-
+const configureTx = await Mina.transaction(
+  { sender: deployer, fee },
+  async () => {
+    await registry.configure(
+      new MissionRegistryConfig({
+        authorityKey,
+        protocolFeeRecipient
+      })
+    );
+  }
+);
 await configureTx.prove();
-configureTx.sign([deployerKey, zkappKey]);
-const sentConfigure = await configureTx.send();
+const configureResult = await configureTx
+  .sign([deployerKey, zkappKey])
+  .send();
+await configureResult.wait();
 
 console.log(JSON.stringify({
   ok: true,
+  contract: "MissionRegistry",
   zkappAddress: zkappAddress.toBase58(),
-  beneficiary: beneficiary.toBase58(),
-  deployer: deployer.toBase58(),
-  deployHash: sentDeploy.hash ?? null,
-  deployStatus: sentDeploy.status ?? null,
-  configureHash: sentConfigure.hash ?? null,
-  configureStatus: sentConfigure.status ?? null,
-  graphql
+  authorityKey: authorityKey.toBase58(),
+  protocolFeeRecipient: protocolFeeRecipient.toBase58(),
+  deployTransactionHash: deployResult.hash,
+  configureTransactionHash: configureResult.hash,
+  network
 }, null, 2));

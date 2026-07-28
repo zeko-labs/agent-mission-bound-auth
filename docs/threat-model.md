@@ -39,6 +39,7 @@ its side of a transaction.
 - mission authority signing keys
 - configured enterprise IdP trust roots
 - holder key environment or wallet approval surface
+- configured domain-verifier Pallas trust roots and verifier implementation
 - verifier implementation and canonicalization rules
 - Zeko-compatible registry and settlement verification path
 - production secret storage for authority and facilitator keys
@@ -62,8 +63,9 @@ The protocol is designed to provide:
 - boundary compliance through checkpoint verification
 - trace integrity through hash-chained boundary events
 - receipt binding across mission, policy, data, output, payment, and anchor
-- replay resistance through idempotency keys, nullifiers, and registry state
-- settlement condition binding before payout or release
+- replay resistance through idempotency keys and on-chain nullifier state
+- proof-gated, atomic escrow payout and protocol fee settlement
+- domain-proof-attested output binding under a mission-approved verifier key
 
 ## Non-Guarantees
 
@@ -82,15 +84,25 @@ agent correctness.
 
 ## Production Expectations
 
-Production deployments should:
+All secure production profiles should:
 
 - verify enterprise JWTs against pinned issuer, audience, expiry, nonce, and
   JWKS trust roots
 - reject unmapped agent subjects
 - require signed mission approvals
-- use durable replay, budget, revocation, and registry state
-- anchor approval roots and receipt roots on a Zeko-compatible registry
-- require signed facilitator receipts or live chain verification for settlement
-- reject production-final receipts that lack anchor evidence
+- use durable replay, budget, and revocation state
 - reject demo digest holder proofs and require a public-key or ZK-friendly
   holder proof scheme such as `ed25519-holder-proof-v1`
+
+Zeko settlement production should additionally:
+
+- use durable registry witness state
+- anchor approvals and settle proof-bound receipts through MissionRegistry
+- require concrete o1js proof verification and live/archive Zeko verification
+- pin domain-verifier Pallas keys and run the domain-specific evidence verifier
+- reject production-final receipts with metadata-only proof or anchor evidence
+
+Portable browser and extension authorization does not trust an MBA compute
+operator or TEE. Its holder key can remain client-side, while each domain
+application remains responsible for enforcing the checkpoint before its own
+side effect.

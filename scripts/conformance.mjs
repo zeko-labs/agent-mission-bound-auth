@@ -10,6 +10,10 @@ function schema(path) {
 }
 
 function assertType(value, expected, path) {
+  if (expected === "integer") {
+    if (!Number.isInteger(value)) throw new Error(`${path} must be integer`);
+    return;
+  }
   if (expected === "array") {
     if (!Array.isArray(value)) throw new Error(`${path} must be array`);
     return;
@@ -101,7 +105,7 @@ async function buildRemoteArtifacts(baseUrl) {
     approval,
     auth: { authCommitment: "a".repeat(64), scopeCommitment: "b".repeat(64) },
     receipt: checkpoint.enforcementReceipt,
-    zeko: { zkappAddress: "B62qpBXMbrKVJwcS9wQN7SpFb6jkrXn2xrntCoM6D461qL2sYZarPHi" }
+    zeko: { zkappAddress: "zeko-registry-test-fixture" }
   });
   return { artifacts: { agentPassport, mission, approval, checkpointRequest, bundle }, keySet, discovery, mode: "remote", baseUrl };
 }
@@ -130,7 +134,7 @@ function buildLocalArtifacts() {
     mission: artifacts.mission,
     approval: artifacts.approval,
     auth: { authCommitment: "a".repeat(64), scopeCommitment: "b".repeat(64) },
-    zeko: { zkappAddress: "B62qpBXMbrKVJwcS9wQN7SpFb6jkrXn2xrntCoM6D461qL2sYZarPHi" }
+    zeko: { zkappAddress: "zeko-registry-test-fixture" }
   });
   return { artifacts, keySet: jwks(), discovery: { protocol: "local-primitives" }, mode: "local" };
 }
@@ -141,7 +145,13 @@ const run = process.env.CONFORMANCE_BASE_URL
 
 validateArtifacts(run.artifacts, run.keySet);
 
-fs.writeFileSync("examples/generated-conformance-artifacts.json", JSON.stringify(run.artifacts, null, 2));
+const outputPath = process.env.CONFORMANCE_OUTPUT ?? null;
+if (outputPath) {
+  fs.writeFileSync(
+    outputPath,
+    JSON.stringify(run.artifacts, null, 2)
+  );
+}
 
 console.log(JSON.stringify({
   ok: true,
@@ -149,7 +159,8 @@ console.log(JSON.stringify({
   baseUrl: run.baseUrl ?? null,
   discovery: run.discovery.protocol,
   schemas: 5,
-  signatures: ["agentPassport", "approval", "bundle"],
-  output: "examples/generated-conformance-artifacts.json",
+  signatures: ["agentPassport", "approval"],
+  bundleIntegrity: "sha256",
+  output: outputPath,
   bundleHash: run.artifacts.bundle.bundleHash
 }, null, 2));

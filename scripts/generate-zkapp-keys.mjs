@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { PrivateKey } from "../../zeko-x402/node_modules/o1js/dist/node/index.js";
+import { PrivateKey } from "o1js";
 
 const outputDir = path.join(process.cwd(), "data", "keys");
-const outputPath = path.join(outputDir, "private-compute-zkapp-key.json");
+const outputPath = path.join(outputDir, "mission-registry-zkapp-key.json");
 
 if (fs.existsSync(outputPath) && process.env.FORCE !== "1") {
   const existing = JSON.parse(fs.readFileSync(outputPath, "utf8"));
@@ -21,7 +21,7 @@ fs.mkdirSync(outputDir, { recursive: true });
 const privateKey = PrivateKey.random();
 const publicKey = privateKey.toPublicKey().toBase58();
 const payload = {
-  kind: "private-compute-zkapp-key-v1",
+  kind: "mba-mission-registry-zkapp-key-v1",
   publicKey,
   privateKey: privateKey.toBase58(),
   createdAt: new Date().toISOString()

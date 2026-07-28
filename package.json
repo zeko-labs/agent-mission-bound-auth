@@ -20,19 +20,36 @@
     "test": "node scripts/smoke.mjs",
     "smoke": "node scripts/smoke.mjs",
     "zeko:live-check": "node scripts/zeko-live-check.mjs",
-    "zkapp:build": "../zeko-x402/node_modules/.bin/tsc -p tsconfig.zkapp.json",
+    "zkapp:build": "tsc -p tsconfig.zkapp.json",
+    "zkapp:compile-proof-system": "npm run zkapp:build && node scripts/compile-mission-compliance.mjs",
     "production:doctor": "node scripts/production-doctor.mjs",
     "test:production-hardening": "node scripts/production-hardening.mjs",
     "test:protocol-bindings": "node scripts/protocol-binding-tests.mjs",
+    "test:x402-v2": "node scripts/x402-v2-conformance.mjs",
+    "test:zeko-chain-query": "node scripts/zeko-chain-query-tests.mjs",
+    "test:zeko-inputs": "node scripts/zeko-input-compiler-tests.mjs",
+    "test:profiles": "node scripts/profile-conformance.mjs",
+    "test:schemas": "node scripts/schema-tests.mjs",
     "mba": "node scripts/mba.mjs",
     "zkapp:deploy": "npm run zkapp:build && node scripts/deploy-private-compute-zkapp.mjs",
     "zkapp:get-state": "npm run zkapp:build && node scripts/get-private-compute-zkapp-state.mjs",
     "zkapp:anchor-approval": "npm run zkapp:build && node scripts/anchor-mission-approval.mjs",
+    "zkapp:revoke-capability": "npm run zkapp:build && node scripts/revoke-mission-capability.mjs",
+    "zkapp:fund-mission": "npm run zkapp:build && node scripts/fund-mission-escrow.mjs",
     "zkapp:anchor-receipt": "npm run zkapp:build && node scripts/anchor-private-compute-receipt.mjs",
+    "zkapp:settle-mission": "npm run zkapp:build && node scripts/anchor-private-compute-receipt.mjs",
+    "zkapp:refund-mission": "npm run zkapp:build && node scripts/refund-mission-escrow.mjs",
     "smoke:live-approval-anchor": "npm run zkapp:build && node scripts/live-approval-anchor-smoke.mjs",
     "smoke:live-anchor": "npm run zkapp:build && node scripts/live-anchor-smoke.mjs",
+    "test:zkapp-trustless": "npm run zkapp:build && node scripts/zkapp-trustless-smoke.mjs",
+    "test:zkapp-trustless:proofs": "MBA_REAL_PROOFS=true npm run test:zkapp-trustless",
+    "test:demo": "npm test",
+    "test:portable": "npm run test:profiles && npm run test:browser-helper-conformance",
+    "test:zeko:simulated": "npm run test:zkapp-trustless",
+    "test:ci": "npm run zkapp:build && npm run test:schemas && npm run test:profiles && npm run test:protocol-bindings && npm run test:x402-v2 && npm run test:zeko-chain-query && npm run test:zeko-inputs && npm run test:browser-helper-conformance && npm run test:conformance && npm run test:production-hardening && npm run test:zkapp-trustless && npm test",
     "smoke:protocol": "node scripts/protocol-smoke.mjs",
     "test:conformance": "node scripts/conformance.mjs",
+    "generate:conformance": "CONFORMANCE_OUTPUT=examples/generated-conformance-artifacts.json node scripts/conformance.mjs",
     "test:browser-helper-conformance": "node scripts/browser-helper-conformance.mjs",
     "test:conformance:remote": "CONFORMANCE_BASE_URL=${CONFORMANCE_BASE_URL:-http://127.0.0.1:8787} node scripts/conformance.mjs",
     "test:oauth-sandbox": "node scripts/oauth-sandbox-smoke.mjs",
@@ -45,6 +62,13 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@auth0/auth0-spa-js": "^2.19.2"
+    "@auth0/auth0-spa-js": "^2.19.2",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "o1js": "^2.14.0",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   }
 }

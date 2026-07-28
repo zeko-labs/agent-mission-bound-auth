@@ -1,24 +1,48 @@
-# Zeko zkApp Boundary
+# MBA Zeko Programs
 
-`PrivateComputeAccess.ts` is the contract boundary for the live Zeko version of the demo.
+## MissionComplianceProgram
 
-The current local app runs the same shape in mock-audit mode. This zkApp is the next hardening step:
+`MissionComplianceProgram.ts` proves that up to four holder-signed boundary
+events:
 
-- `datasetRoot`: commitments to private datasets that agents may compute over
-- `authRoot`: commitments to ZK-backed OAuth authorizations
-- `receiptRoot`: commitments to completed private-compute outputs and payment receipts
-- `beneficiary`: settlement recipient expected by the x402 Zeko rail
+- belong to one mission, capability, and policy
+- are members of approved action and domain sets
+- form one contiguous trace
+- occur before mission expiry
+- fit within the approved aggregate microusd budget
+- carry a valid trusted domain-verifier signature over the dataset, domain
+  proof, and output commitments
+- bind the dataset, domain proof, output, payment context, receipt, beneficiary,
+  payout, and protocol fee commitments
 
-The intended live call sequence is:
+Private data and event details remain witnesses. The public statement contains
+only commitments, roots, counters, the beneficiary, and settlement amounts.
 
-1. Enterprise OAuth provider issues claims.
-2. Server or wallet derives a ZK OAuth authorization commitment.
-3. App updates `authRoot`.
-4. Private dataset owner registers a dataset commitment into `datasetRoot`.
-5. Agent pays through the Zeko x402 settlement rail.
-6. Private compute runs off-chain.
-7. App records a `PrivateComputeReceipt` commitment into `receiptRoot`.
+`domainProofCommitment` binds domain-specific evidence. The circuit verifies a
+mission-approved Pallas verifier attestation over that evidence and its output.
+Receipt verification also executes the domain adapter against the disclosed
+evidence.
 
-This keeps raw OAuth claims, private records, and raw compute context off-chain while giving agents and auditors a Zeko-verifiable trail.
+## MissionRegistry
 
-For this local Codex workspace, the scaffold imports `o1js` from the sibling `../zeko-x402` checkout so it can build without installing a second copy of the Zeko toolchain.
+`MissionRegistry.ts` stores:
+
+- mission authority public key
+- protocol fee recipient
+- one namespaced Merkle root for approvals, revocations, nullifiers, receipts,
+  and escrows
+- monotonic registry sequence
+
+The authority anchors approvals and revocations with signatures separated by
+registry address, operation, and sequence. Payers fund mission escrows.
+`settleMission` verifies the compliance proof, approval membership, revocation
+non-membership, unused nullifier, empty receipt slot, and active escrow. It then
+consumes the nullifier, inserts the receipt, closes escrow, and atomically pays
+the beneficiary and fee recipient. Expired active escrows can be refunded.
+
+`PrivateComputeAccess.ts` is the frozen v0 implementation, including its
+original class, receipt type, methods, and state layout. Existing v0 deployments
+remain separate from `MissionRegistry`. New trustless settlement deployments
+use the MissionRegistry verification key and require a fresh zkApp key. The
+public v0 testnet address and transaction record are preserved in
+`docs/legacy-private-compute-access-v0.md`.

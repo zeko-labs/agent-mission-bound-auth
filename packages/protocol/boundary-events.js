@@ -1,6 +1,7 @@
 import { createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify } from "node:crypto";
 import { id, sha256Hex } from "./digest.js";
 import { isProductionProfile, isProductionStrictVerifier } from "./runtime.js";
+import { validateArtifactSchema } from "./schema-validation.js";
 
 export const DIGEST_HOLDER_PROOF_SCHEME = "digest-holder-proof-v1";
 export const ED25519_HOLDER_PROOF_SCHEME = "ed25519-holder-proof-v1";
@@ -8,6 +9,7 @@ export const BROWSER_HELPER_ED25519_COMPAT_HOLDER_PROOF_SCHEME = "browser-helper
 
 export function holderChallengeHash(eventBody) {
   return sha256Hex({
+    version: eventBody.version,
     missionIdHash: eventBody.missionIdHash,
     capabilityHash: eventBody.capabilityHash,
     policyHash: eventBody.policyHash,
@@ -19,7 +21,10 @@ export function holderChallengeHash(eventBody) {
     paymentContextDigest: eventBody.paymentContextDigest,
     sideEffectId: eventBody.sideEffectId,
     idempotencyKey: eventBody.idempotencyKey,
-    previousEventHash: eventBody.previousEventHash
+    previousEventHash: eventBody.previousEventHash,
+    observedAt: eventBody.observedAt,
+    expiresAt: eventBody.expiresAt,
+    holderKeyCommitment: eventBody.holderKeyCommitment
   });
 }
 
@@ -174,8 +179,11 @@ function verifyEd25519HolderProof(event, holderProof) {
 }
 
 function verifyCompatibilityHolderProof(event, holderProof, options = {}) {
-  if (isProductionStrictVerifier(options, options.env ?? process.env)) {
-    return { valid: false, reason: "Compatibility holder proofs are not accepted in production_strict verifier mode." };
+  if (
+    isProductionProfile(options.env ?? process.env) ||
+    isProductionStrictVerifier(options, options.env ?? process.env)
+  ) {
+    return { valid: false, reason: "Compatibility holder proofs are not accepted in production." };
   }
   if (!holderProof.publicJwk) {
     return { valid: false, reason: "Compatibility holder proof missing publicJwk." };
@@ -192,6 +200,12 @@ function verifyCompatibilityHolderProof(event, holderProof, options = {}) {
   }
   try {
     const signedChallengeHash = holderProof.appChallengeHash ?? holderProof.compatibilityChallengeHash ?? holderProof.messageHash;
+    if (signedChallengeHash !== holderProof.messageHash) {
+      return {
+        valid: false,
+        reason: "Compatibility holder proof signature is not bound to the MBA event challenge."
+      };
+    }
     const publicKey = createPublicKey({ key: holderProof.publicJwk, format: "jwk" });
     const ok = cryptoVerify(
       null,
@@ -235,6 +249,8 @@ export function verifyBoundaryEvent(event, options = {}) {
   if (!event || typeof event !== "object") {
     return { valid: false, reason: "Missing boundary event." };
   }
+  const schema = validateArtifactSchema("boundary-event", event);
+  if (!schema.valid) return schema;
   if (event.version !== "mission-bound-boundary-event-v1") {
     return { valid: false, reason: "Unsupported boundary event version." };
   }
@@ -274,10 +290,31 @@ export function verifyBoundaryEvent(event, options = {}) {
       return { valid: false, reason: "production_strict boundary events require holderKeyCommitment." };
     }
   }
+  const observedAt = Date.parse(event.observedAt);
+  if (Number.isNaN(observedAt)) {
+    return { valid: false, reason: "Boundary event has invalid observedAt." };
+  }
+  const clockToleranceMs =
+    Number(options.clockToleranceSeconds ?? 60) * 1000;
+  if (
+    !options.allowFuture &&
+    observedAt > (options.now ?? Date.now()) + clockToleranceMs
+  ) {
+    return { valid: false, reason: "Boundary event observedAt is in the future." };
+  }
   if (!options.allowExpired && event.expiresAt) {
     const expiry = Date.parse(event.expiresAt);
     if (Number.isNaN(expiry) || expiry <= Date.now()) {
       return { valid: false, reason: "Boundary event expired or has invalid expiry." };
+    }
+  }
+  if (event.expiresAt) {
+    const expiry = Date.parse(event.expiresAt);
+    if (Number.isNaN(expiry) || expiry < observedAt) {
+      return {
+        valid: false,
+        reason: "Boundary event expiry precedes observedAt or is invalid."
+      };
     }
   }
   const holderProof = verifyHolderProof(event, options);
@@ -291,6 +328,7 @@ export function verifyTraceChain(events = [], options = {}) {
   }
 
   let previousEventHash = options.initialPreviousEventHash ?? "GENESIS";
+  let previousObservedAt = Number.NEGATIVE_INFINITY;
   for (const event of events) {
     const verified = verifyBoundaryEvent(event, {
       ...options,
@@ -299,7 +337,16 @@ export function verifyTraceChain(events = [], options = {}) {
     if (!verified.valid) {
       return { ...verified, eventHash: event?.eventHash };
     }
+    const observedAt = Date.parse(event.observedAt);
+    if (observedAt < previousObservedAt) {
+      return {
+        valid: false,
+        reason: "Boundary event observedAt values are not monotonic.",
+        eventHash: event.eventHash
+      };
+    }
     previousEventHash = event.eventHash;
+    previousObservedAt = observedAt;
   }
 
   const latestEventHash = events.at(-1).eventHash;

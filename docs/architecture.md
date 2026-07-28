@@ -1,55 +1,79 @@
 # Architecture
 
-## Protocol Flow
+MBA is layered. Portable authorization ends after application enforcement and
+receipt export; the settlement profile continues through x402 and Zeko.
 
 ```mermaid
 sequenceDiagram
-    participant IdP as Enterprise IdP (SAML/OIDC)
-    participant Auth as Mission Authority
-    participant Agent as Agent
-    participant App as Domain App
-    participant X402 as x402 Rail
-    participant Zeko as Zeko zkApp
+  participant Principal
+  participant IdP as Auth0 / Okta / OIDC
+  participant MBA as MBA Sidecar
+  participant Holder as Agent Holder
+  participant App as Domain App
+  participant X402 as x402 Facilitator
+  participant Zeko as MissionRegistry on Zeko
 
-    IdP->>Auth: Verified enterprise identity / claims
-    Auth->>Agent: Agent Passport (JWS)
-    Agent->>Auth: Mission proposal
-    Auth->>Agent: Mission Approval (JWS)
-    Auth->>Zeko: Anchor approval commitment
-    Agent->>App: Request action + mission approval
-    App->>Auth: Verify checkpoint
-    App->>X402: Require / verify payment
-    App->>App: Execute domain action
-    App->>Zeko: Anchor execution receipt
-    App->>Agent: Result + portable bundle
+  Principal->>IdP: Authenticate
+  IdP-->>MBA: Authorization code + ID token
+  MBA->>MBA: Verify PKCE, nonce, JWKS, issuer, audience, expiry
+  MBA-->>Holder: Signed identity attestation and passport
+  Holder->>MBA: Propose mission
+  MBA-->>Holder: Signed approval and holder-bound capability
+  Holder->>App: Holder-signed boundary events
+  App-->>Holder: Enforcement receipt / redacted trace
+  rect rgb(235, 245, 255)
+  Note over MBA,Zeko: Zeko settlement profile
+  MBA->>Zeko: Anchor approval commitment
+  App->>X402: Verify x402 v2 payment authorization
+  App->>App: Verify work and sign proof/output commitments
+  Holder->>Holder: Prove mission compliance privately
+  Holder->>Zeko: Settle proof against funded escrow
+  Zeko->>Zeko: Consume nullifier and record receipt
+  Zeko-->>Holder: Atomic beneficiary payout and protocol fee
+  end
 ```
 
-## Approval Before / Receipt After
+## Proof And Registry
 
 ```mermaid
 flowchart LR
-  A["Mission approval"] --> B["approvalHash"]
-  B --> C["Zeko authRoot"]
-  C --> D["Checkpoint allows action"]
-  D --> E["Domain execution"]
-  E --> F["outputHash + paymentContextDigest"]
-  F --> G["Zeko receiptRoot"]
+  I["Verified OIDC identity"] --> C["Signed mission capability"]
+  C --> E["Holder-signed boundary events"]
+  E --> P["MissionCompliance proof"]
+  D["Domain proof commitment"] --> P
+  V["Trusted domain-verifier signature"] --> P
+  X["x402 payment context"] --> P
+  P --> R["MissionRegistry"]
+  A["Anchored approval"] --> R
+  F["Funded escrow"] --> R
+  R --> N["Nullifier consumed"]
+  R --> Q["Receipt recorded"]
+  R --> S["Payout + fee"]
 ```
 
-## Where Domain Apps Plug In
+Domain apps own work semantics and domain proof generation. MBA pins their
+approved Pallas verifier keys, proves the verifier signature inside
+MissionCompliance, independently verifies disclosed evidence during receipt
+verification, and owns authority, policy proof, replay resistance, receipt
+binding, and Zeko settlement. The private-compute harness is one adapter, not
+the protocol boundary.
+
+## Profile Boundaries
 
 ```mermaid
-flowchart TD
-  P["Agent Mission-Bound Auth"] -->|"verify-checkpoint"| D1["Private Compute"]
-  P -->|"verify-checkpoint"| D2["Email / Calendar"]
-  P -->|"verify-checkpoint"| D3["Trading / Procurement"]
-  P -->|"verify-checkpoint"| D4["Code Execution"]
+flowchart LR
+  D["Demo: digest fixtures + mock x402 + simulated proofs"]
+  P["Portable: OIDC + signed capability + Ed25519 events"]
+  A["Application or browser-extension enforcement"]
+  Z["Zeko settlement: domain proof + x402 + MissionRegistry"]
+  O["Conditional payout + public receipt anchor"]
 
-  D1 --> R["Domain receipt"]
-  D2 --> R
-  D3 --> R
-  D4 --> R
-  R --> Z["Zeko receipt root"]
+  D --> P
+  P --> A
+  A --> Z
+  Z --> O
 ```
 
-The bundled private-compute UI is one reference domain adapter. Replace it with any app that can call `verify-checkpoint` before work or side effects.
+Portable mode has no central compute, TEE, facilitator, or chain runtime
+dependency. Zeko settlement is a stronger continuation for proof-backed
+commerce, not a prerequisite for mission-bound browser authorization.

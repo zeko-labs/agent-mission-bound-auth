@@ -59,18 +59,29 @@ export function verifyZkOAuthProof(proof, requirement) {
   if (!proof || typeof proof !== "object") {
     return { ok: false, reason: "Missing ZK OAuth proof." };
   }
+  if (isProductionProfile()) {
+    return {
+      ok: false,
+      reason: "zk-oauth-v1 is a demo artifact and is disabled in production."
+    };
+  }
 
-  const { proofId: _proofId, issuerProofDigest, ...proofBody } = proof;
-  if (isProductionProfile() && proofBody.issuer === ISSUER) {
-    return { ok: false, reason: "Demo ZK OAuth issuer is disabled in production profile." };
+  const { proofId, issuerProofDigest, ...proofBody } = proof;
+  if (
+    proofBody.version !== "zk-oauth-v1" ||
+    proofBody.issuer !== ISSUER ||
+    proofId !== id("zkp", proofBody)
+  ) {
+    return { ok: false, reason: "ZK OAuth proof identity is invalid." };
   }
   const expected = hmacSha256Hex(issuerSecret(), proofBody);
   if (issuerProofDigest !== expected) {
     return { ok: false, reason: "ZK OAuth proof digest is invalid." };
   }
 
-  if (Date.parse(proof.revealed?.expiresAt ?? "") <= Date.now()) {
-    return { ok: false, reason: "ZK OAuth proof is expired." };
+  const expiry = Date.parse(proof.revealed?.expiresAt ?? "");
+  if (Number.isNaN(expiry) || expiry <= Date.now()) {
+    return { ok: false, reason: "ZK OAuth proof is expired or malformed." };
   }
 
   if (isAuthCommitmentRevoked(proof.authCommitment)) {

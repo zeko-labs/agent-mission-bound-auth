@@ -40,6 +40,16 @@ function persistRevocations() {
 }
 
 export function revokeAuthCommitment(authCommitment, reason = "revoked") {
+  if (!/^[0-9a-f]{64}$/.test(String(authCommitment ?? ""))) {
+    throw new TypeError("authCommitment must be a SHA-256 hex digest.");
+  }
+  if (
+    typeof reason !== "string" ||
+    reason.length === 0 ||
+    reason.length > 256
+  ) {
+    throw new TypeError("revocation reason must contain 1 to 256 characters.");
+  }
   ensureRevocationsLoaded();
   revokedAuthCommitments.set(authCommitment, {
     authCommitment,

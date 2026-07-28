@@ -2,8 +2,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { hmacSha256Hex, id, sha256Hex } from "./digest.js";
 import { signJws, verifyJws, jwks } from "./authority-keys.js";
-import { requireConfiguredValue, isProductionProfile } from "./runtime.js";
+import {
+  requireConfiguredValue,
+  isProductionProfile,
+  isZekoSettlementProfile
+} from "./runtime.js";
 import { writeJsonAtomic } from "./storage.js";
+import {
+  verifyEnterpriseIdentityAttestation
+} from "./identity-attestations.js";
+import { usdToMicrousd } from "./zeko-encoding.js";
+import { validateArtifactSchema } from "./schema-validation.js";
 
 const agents = new Map();
 const missions = new Map();
@@ -79,21 +88,53 @@ function persistState() {
 
 export function buildAgentPassport(input = {}) {
   ensureStateLoaded();
-  const agentId = input.agentId ?? "agent-research-ops-001";
+  const identity = input.identityAttestation
+    ? verifyEnterpriseIdentityAttestation(input.identityAttestation)
+    : null;
+  if (identity && !identity.valid) {
+    throw new Error(identity.reason);
+  }
+  if (isProductionProfile() && !identity?.valid) {
+    throw new Error("verified_enterprise_identity_attestation_required");
+  }
+  const agentId =
+    identity?.agentId ??
+    input.agentId ??
+    "agent-research-ops-001";
+  if (input.agentId && identity?.agentId && input.agentId !== identity.agentId) {
+    throw new Error("agent_id_does_not_match_identity_attestation");
+  }
   const domain = input.domain ?? "agents.local";
+  if (
+    isProductionProfile() &&
+    !input.holderKeyCommitment
+  ) {
+    throw new Error("holder_key_commitment_required");
+  }
+  if (
+    isZekoSettlementProfile() &&
+    (!input.zekoHolderPublicKey || !input.zekoHolderKeyCommitment)
+  ) {
+    throw new Error("zeko_holder_key_binding_required");
+  }
   const passport = {
     version: "agent-passport-v1",
     agentId,
     agentIdentifier: `aauth:${agentId}@${domain}`,
     represents: {
       type: "organization",
-      id: input.organization ?? "Northstar Bio"
+      id: identity?.organization ?? input.organization ?? "Northstar Bio"
     },
     vouchedBy: [
       {
         type: "enterprise-idp",
         protocol: input.idpProtocol ?? "saml-or-oidc",
-        issuer: input.issuer ?? "zk-oauth-demo.enterprise.example"
+        issuer:
+          identity?.source?.issuer ??
+          input.issuer ??
+          "zk-oauth-demo.enterprise.example",
+        attestationHash:
+          input.identityAttestation?.attestationHash ?? null
       },
       {
         type: "mission-authority",
@@ -101,9 +142,17 @@ export function buildAgentPassport(input = {}) {
       }
     ],
     keyBinding: {
-      method: "http-message-signatures-compatible",
-      jwksUri: input.jwksUri ?? `https://${domain}/.well-known/agent-jwks.json`
+      method: input.zekoHolderPublicKey
+        ? "ed25519-and-zeko-pallas-v1"
+        : "ed25519-v1",
+      jwksUri: input.jwksUri ?? `https://${domain}/.well-known/agent-jwks.json`,
+      holderKeyCommitment: input.holderKeyCommitment ?? null,
+      zekoHolderPublicKey: input.zekoHolderPublicKey ?? null,
+      zekoHolderKeyCommitment: input.zekoHolderKeyCommitment ?? null
     },
+    authCommitment: input.identityAttestation?.authCommitment ?? null,
+    identityAttestationHash:
+      input.identityAttestation?.attestationHash ?? null,
     createdAt: new Date().toISOString()
   };
 
@@ -124,6 +173,11 @@ export function getAgentPassport(agentId) {
   return agents.get(agentId) ?? buildAgentPassport({ agentId });
 }
 
+export function findAgentPassport(agentId) {
+  ensureStateLoaded();
+  return agents.get(agentId) ?? null;
+}
+
 export function proposeMission(input) {
   ensureStateLoaded();
   const now = new Date();
@@ -138,8 +192,13 @@ export function proposeMission(input) {
     task: input.task,
     datasetId: input.datasetId,
     operation: input.operation,
+    holderKeyCommitment:
+      agent.keyBinding?.holderKeyCommitment ?? null,
+    zekoHolderKeyCommitment:
+      agent.keyBinding?.zekoHolderKeyCommitment ?? null,
+    allowedDomains: input.allowedDomains ?? [],
     allowedTools: input.allowedTools ?? ["private_compute.run", "x402.payment_offer", "x402.pay", "x402.settle", "zeko.receipt.anchor"],
-    allowedScopes: input.allowedScopes,
+    allowedScopes: input.allowedScopes ?? [],
     constraints: {
       rawDataEgress: false,
       aggregateOnly: true,
@@ -175,6 +234,15 @@ export function approveMission(input) {
   if (!mission) {
     throw new Error("mission_not_found");
   }
+  const approverIdentity = input.approverAttestation
+    ? verifyEnterpriseIdentityAttestation(input.approverAttestation)
+    : null;
+  if (approverIdentity && !approverIdentity.valid) {
+    throw new Error(approverIdentity.reason);
+  }
+  if (isProductionProfile() && !approverIdentity?.valid) {
+    throw new Error("verified_approver_identity_attestation_required");
+  }
 
   const approvalBody = {
     version: "mission-approval-v1",
@@ -182,16 +250,29 @@ export function approveMission(input) {
     missionHash: mission.missionHash,
     approver: {
       type: input.approverType ?? "enterprise-human-or-policy",
-      id: input.approverId ?? "approver@example.com",
-      issuer: input.issuer ?? "agent-mission-bound-auth"
+      id: approverIdentity?.agentId ?? input.approverId ?? "approver@example.com",
+      organization:
+        approverIdentity?.organization ?? input.approverOrganization ?? null,
+      issuer:
+        approverIdentity?.source?.issuer ??
+        input.issuer ??
+        "agent-mission-bound-auth",
+      identityAttestationHash:
+        input.approverAttestation?.attestationHash ?? null
     },
     approvedTools: mission.allowedTools,
     approvedScopes: mission.allowedScopes,
     approvedRails: mission.constraints.allowedRails,
+    approvedDomains: mission.allowedDomains,
+    holderKeyCommitment: mission.holderKeyCommitment,
+    zekoHolderKeyCommitment: mission.zekoHolderKeyCommitment,
     missionSnapshot: {
       agentId: mission.agentId,
+      holderKeyCommitment: mission.holderKeyCommitment,
+      zekoHolderKeyCommitment: mission.zekoHolderKeyCommitment,
       datasetId: mission.datasetId,
       operation: mission.operation,
+      allowedDomains: mission.allowedDomains,
       constraints: mission.constraints,
       checkpoints: mission.checkpoints
     },
@@ -204,14 +285,18 @@ export function approveMission(input) {
     approvalHash: sha256Hex(approvalBody),
     authoritySignature: missionCompatibilitySignature(approvalBody),
     authorityJws: signJws(approvalBody, { typ: "mission-approval+jwt" }),
-    zekoAnchor: {
-      primitive: "mission-approval-commitment-v1",
-      commitment: sha256Hex({
-        missionHash: mission.missionHash,
-        approvalHash: sha256Hex(approvalBody)
-      }),
-      status: "ready-to-anchor"
-    }
+    ...(isZekoSettlementProfile()
+      ? {
+          zekoAnchor: {
+            primitive: "mission-approval-commitment-v1",
+            commitment: sha256Hex({
+              missionHash: mission.missionHash,
+              approvalHash: sha256Hex(approvalBody)
+            }),
+            status: "ready-to-anchor"
+          }
+        }
+      : {})
   };
 
   approvals.set(approval.approvalId, approval);
@@ -224,6 +309,10 @@ export function verifyMissionApproval(approval, context) {
   ensureStateLoaded();
   if (!approval || typeof approval !== "object") {
     return { ok: false, reason: "Missing mission approval." };
+  }
+  const schema = validateArtifactSchema("approval", approval);
+  if (!schema.valid) {
+    return { ok: false, reason: schema.reason, schemaErrors: schema.errors };
   }
   const {
     approvalId,
@@ -276,6 +365,17 @@ export function verifyMissionApproval(approval, context) {
   if (context.operation && context.operation !== mission.operation) {
     return { ok: false, reason: "Mission approval is not bound to this operation." };
   }
+  const targetDomain =
+    context.targetDomain ?? context.domain ?? context.toDomain;
+  if (
+    targetDomain &&
+    !(approval.approvedDomains ?? []).includes(targetDomain)
+  ) {
+    return {
+      ok: false,
+      reason: `Mission approval does not allow domain:${targetDomain}.`
+    };
+  }
   if (context.railId && !approval.approvedRails.includes(context.railId)) {
     return { ok: false, reason: `Mission approval does not allow rail:${context.railId}.` };
   }
@@ -297,15 +397,21 @@ export function verifyMissionApproval(approval, context) {
   };
 }
 
-function maxSpend(approval) {
+function maxSpendMicrousd(approval) {
   const value = approval.missionSnapshot?.constraints?.maxSpendUsd;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  try {
+    return usdToMicrousd(value ?? "0");
+  } catch {
+    return null;
+  }
 }
 
-function spendAmount(context = {}) {
-  const parsed = Number(context.spendUsd ?? context.amountUsd ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
+function spendAmountMicrousd(context = {}) {
+  try {
+    return usdToMicrousd(context.spendUsd ?? context.amountUsd ?? "0");
+  } catch {
+    return null;
+  }
 }
 
 function enforceReplayAndBudget({ approval, checkpoint, context = {} }) {
@@ -338,14 +444,17 @@ function enforceReplayAndBudget({ approval, checkpoint, context = {} }) {
     if (orderIndex >= 0) checkpointProgress.set(progressKey, orderIndex);
   }
 
-  const amount = spendAmount(context);
-  if (amount > 0) {
-    const max = maxSpend(approval);
-    const spent = spendLedger.get(approvalId) ?? 0;
-    if (max > 0 && spent + amount > max) {
-      return { ok: false, reason: `Mission budget exceeded: ${spent + amount} > ${max}.` };
+  const amount = spendAmountMicrousd(context);
+  const max = maxSpendMicrousd(approval);
+  if (amount === null || max === null) {
+    return { ok: false, reason: "Mission budget contains an invalid decimal amount." };
+  }
+  if (amount > 0n) {
+    const spent = BigInt(spendLedger.get(approvalId) ?? "0");
+    if (max > 0n && spent + amount > max) {
+      return { ok: false, reason: `Mission budget exceeded: ${spent + amount} microusd > ${max} microusd.` };
     }
-    spendLedger.set(approvalId, spent + amount);
+    spendLedger.set(approvalId, (spent + amount).toString());
   }
 
   return { ok: true };

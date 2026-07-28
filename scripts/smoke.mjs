@@ -34,6 +34,7 @@ async function buildMissionApproval(base, zkOAuthProof, request) {
     operation: request.operation,
     task: request.query,
     title: "Smoke private compute mission",
+    allowedDomains: ["example.com"],
     allowedTools: ["private_compute.run", "x402.payment_offer", "x402.pay", "x402.settle", "email.send", "zeko.receipt.anchor"],
     allowedScopes: [
       "compute:clinical",
@@ -113,7 +114,7 @@ try {
     });
 
     const paid = await post(base, "/api/compute", request, {
-      PAYMENT: authorization.body.paymentHeader
+      "PAYMENT-SIGNATURE": authorization.body.paymentHeader
     });
 
     if (paid.res.status !== 200) {
@@ -160,7 +161,7 @@ try {
       scopeCommitment: zkOAuthProof.scopeCommitment
     },
     zeko: {
-      zkappAddress: "B62qpBXMbrKVJwcS9wQN7SpFb6jkrXn2xrntCoM6D461qL2sYZarPHi"
+      zkappAddress: "zeko-registry-test-fixture"
     }
   });
   if (!bundle.body.bundle?.bundleHash) throw new Error("mission bundle export failed");

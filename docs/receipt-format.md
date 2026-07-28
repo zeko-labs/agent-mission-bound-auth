@@ -1,101 +1,75 @@
-# Portable Receipt Format
+# Portable Receipt And Proof
 
-The portable receipt is the artifact that lets a third party verify mission
-work without trusting the demo app or seeing private data.
+`mission-bound-auth-receipt-v1` is the redacted audit envelope. It binds the
+mission, signed capability artifact, auth and approval commitments, policy,
+holder, trace, domain proof evidence and attestation, payment, nullifier, proof
+artifact, Zeko public statement, anchor, and settlement lifecycle.
 
-Receipts use `mission-bound-auth-receipt-v1` and are intentionally redacted.
-They include commitments and hashes, not raw prompts, credentials, selectors,
-page text, payment secrets, private vault values, or underlying dataset rows.
+Public receipts must not contain OIDC tokens or subjects, prompts, raw data,
+URLs, selectors, form values, credentials, payment secrets, or holder secrets.
 
-## Required Verifier Questions
+## Proof Artifact
 
-A verifier should be able to answer:
-
-- Was this receipt created under a mission-bound capability?
-- Does the policy hash match the approved task boundary?
-- Did the holder runtime produce a trace commitment?
-- Is the payment context bound to the same receipt?
-- Is the receipt nullifier unique for settlement?
-- Is the receipt/root anchor present for production settlement?
-
-## Shape
+Production receipts carry `mba-mission-compliance-proof-v1`:
 
 ```json
 {
-  "schema": "mission-bound-auth-receipt-v1",
-  "receiptId": "receipt_...",
-  "receiptHash": "...",
-  "mission": {
+  "version": "mba-mission-compliance-proof-v1",
+  "proofSystem": "zeko-o1js-mission-compliance-v1",
+  "circuitDigest": "...",
+  "verificationKeyHash": "...",
+  "publicStatement": {
     "missionIdHash": "...",
-    "capabilityHash": "...",
-    "issuer": "agent-mission-bound-auth",
-    "audience": "mission-verifier"
-  },
-  "policy": {
-    "policyHash": "...",
-    "allowedDomainsHash": "...",
-    "allowedActionsHash": "...",
-    "maxSpendCommitment": "...",
-    "paymentRailsHash": "..."
-  },
-  "holder": {
-    "keyThumbprint": "...",
-    "proofScheme": "ed25519-holder-proof-v1"
-  },
-  "trace": {
-    "eventCount": 3,
-    "traceHash": "...",
-    "latestEventHash": "..."
-  },
-  "payment": {
-    "paymentCommitment": "...",
-    "rail": "zeko",
-    "amountCommitment": "...",
-    "paymentContextDigest": "..."
+    "capabilityCommitment": "...",
+    "receiptCommitment": "...",
+    "nullifier": "...",
+    "beneficiary": "B62...",
+    "payoutNanomina": "...",
+    "protocolFeeNanomina": "..."
   },
   "proof": {
-    "statementKind": "mission-bound-trace-compliance-v1",
-    "statementHash": "...",
-    "proofSystem": "signed-commitment-transition",
-    "verificationKeyHash": null
+    "publicInput": ["..."],
+    "publicOutput": [],
+    "maxProofsVerified": 0,
+    "proof": "..."
   },
-  "nullifier": "...",
-  "registryRoot": "...",
-  "settlementState": "settlement_release_allowed",
-  "anchor": {
-    "registry": "zeko:testnet",
-    "payloadDigest": "...",
-    "txHash": "...",
-    "sequence": 7,
-    "nullifier": "..."
-  },
-  "exportedAt": "2026-07-05T00:00:00.000Z"
+  "artifactHash": "..."
 }
 ```
 
-## Anchor Rule
+The complete statement is defined by
+`schemas/mission-compliance-proof.schema.json`.
 
-A receipt can be in `anchor_prepared` while it is waiting to be finalized. A
-production-settled receipt must include anchor evidence. The verifier rejects
-`settlement_release_allowed` or `settled` receipts that lack an anchor unless
-the caller explicitly allows pre-final receipts.
+The verifier checks artifact integrity, trusted key hash, circuit digest,
+serialized proof validity, and equality between decoded proof input and the
+named public statement. `statementHash` in the receipt hashes that same named
+statement.
 
-## Holder Proof Rule
+The signed capability is verified against the mission-authority JWKS. Its Zeko
+binding must match the proof statement field for field. The receipt's
+settlement nullifier is the Field nullifier consumed by MissionRegistry; the
+off-chain capability nullifier remains a distinct capability lifecycle value.
 
-Receipts point to the trace commitment and holder proof scheme. Local examples
-may use `digest-holder-proof-v1`, but production traces should use
-`ed25519-holder-proof-v1` or another public-key/ZK-friendly holder proof scheme.
-The verifier rejects digest holder proofs in production mode.
+The receipt's `domainProof.evidence` hashes to `domainProofCommitment`.
+`domainProof.attestation` carries a Pallas signature verified by the circuit
+against `domainVerifierKeyCommitment`. The production verifier then executes
+the configured domain adapter against the evidence.
 
-## Production Strict Rule
+## Zeko Anchor
 
-`production_strict` receipt verification requires:
+`mba-zeko-registry-anchor-v1` links the proof artifact and public settlement
+fields to a MissionRegistry transaction, sequence, and resulting root.
+Verification confirms transaction inclusion and registry state. Historical
+anchors require archive evidence.
 
-- strong holder proof scheme evidence, currently `ed25519-holder-proof-v1`
-- proof statement hash and proof system metadata
-- payment context digest
-- nullifier
-- Zeko anchor evidence
+## Settlement Rule
 
-Use this mode for production-final browser/helper-agent receipts and settlement
-release checks.
+`receipt_created`, `proof_prepared`, and `anchor_prepared` are preparation
+states. `settlement_release_allowed` and `settled` are final states, but their
+labels are not authority by themselves.
+
+`verifySettlementOnZeko` performs domain-evidence, proof, and live-chain
+verification before combining the result into a release decision.
+`verifySettlementState` is the lower-level decision combiner.
+`allowUnverifiedDemoEvidence` exists only for deterministic local fixtures and
+must never be enabled in production.

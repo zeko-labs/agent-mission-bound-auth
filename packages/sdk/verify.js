@@ -1,10 +1,22 @@
 import { id, sha256Hex } from "../protocol/digest.js";
 import { verifyJws } from "../protocol/authority-keys.js";
+import { assertArtifactSchema } from "../protocol/schema-validation.js";
 export { verifyHolderProof, verifyTraceChain } from "../protocol/boundary-events.js";
 export { verifyExecutionBundle, verifyBrowserMissionProfile, verifyRedactedTraceExport, verifyHandoffReceipt } from "../protocol/browser-profile.js";
-export { verifyProductionStrictReceipt, verifyReceipt } from "../protocol/receipts.js";
-export { verifyAnchorPayload, verifySettlementState, verifySettlementTransition, verifySettlementTransitionChain } from "../protocol/registry.js";
+export {
+  verifyProductionReceiptCryptographically,
+  verifyProductionStrictReceipt,
+  verifyReceipt
+} from "../protocol/receipts.js";
+export { verifyAnchorPayload, verifySettlementOnZeko, verifySettlementState, verifySettlementTransition, verifySettlementTransitionChain } from "../protocol/registry.js";
 export { verifyCapability, verifyCapabilityRenewal } from "../protocol/capabilities.js";
+export {
+  verifyMissionComplianceProofArtifact
+} from "../protocol/zeko-proof.js";
+export {
+  verifyZekoRegistryAnchorBinding,
+  verifyZekoRegistryAnchorOnChain
+} from "../protocol/zeko-chain.js";
 
 function assertJwsMatchesBody(jws, body, jwks, label, typ) {
   const verified = verifyJws(jws, jwks, { typ });
@@ -15,6 +27,7 @@ function assertJwsMatchesBody(jws, body, jwks, label, typ) {
 }
 
 export function verifyAgentPassport(passport, jwks) {
+  assertArtifactSchema("agent-passport", passport);
   const {
     passportId,
     passportCommitment,
@@ -32,6 +45,7 @@ export function verifyAgentPassport(passport, jwks) {
 }
 
 export function verifyApproval(approval, jwks) {
+  assertArtifactSchema("approval", approval);
   const {
     approvalId,
     approvalHash,
@@ -51,6 +65,28 @@ export function verifyApproval(approval, jwks) {
   };
 }
 
+export function verifyMission(mission) {
+  assertArtifactSchema("mission", mission);
+  const {
+    missionId,
+    missionHash,
+    status: _status,
+    approvalId: _approvalId,
+    ...body
+  } = mission;
+  if (missionId !== id("mission", body)) {
+    throw new Error("mission id mismatch");
+  }
+  if (missionHash !== sha256Hex(body)) {
+    throw new Error("mission hash mismatch");
+  }
+  const expiry = Date.parse(mission.expiresAt);
+  if (Number.isNaN(expiry)) {
+    throw new Error("mission has invalid expiry");
+  }
+  return { ok: true, missionId, missionHash };
+}
+
 export function verifyMissionBundle(bundle, jwks) {
   if (bundle.version !== "zk-mission-bundle-v1") {
     throw new Error("unsupported mission bundle version");
@@ -61,6 +97,7 @@ export function verifyMissionBundle(bundle, jwks) {
     throw new Error("mission bundle hash mismatch");
   }
   if (bundle.agentPassport) verifyAgentPassport(bundle.agentPassport, jwks);
+  if (bundle.mission) verifyMission(bundle.mission);
   if (bundle.approval) verifyApproval(bundle.approval, jwks);
   return { ok: true, bundleHash: bundle.bundleHash };
 }

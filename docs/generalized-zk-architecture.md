@@ -34,11 +34,20 @@ apps, payment rails, and verifiable settlement networks.
 Agent Mission-Bound Auth provides that layer. The system receives a verified
 identity assertion from an identity provider, normalizes provider-specific
 claims into canonical mission claims, constructs cryptographic commitments,
-binds the mission to an agent or runtime holder key, issues a signed approval,
-records boundary events, verifies checkpoints before side effects, prepares a
-portable receipt, proves policy compliance using zero-knowledge or signed
-commitment proofs, anchors approval and receipt roots, and releases settlement
-only when proof and payment bindings match the mission.
+binds the mission to an agent's checkpoint and proof keys, pins an approved
+domain-verifier key, issues a signed approval, records boundary events, verifies
+checkpoints before side effects, prepares a portable receipt, proves policy
+compliance and domain-verifier participation in zero knowledge, records
+approvals and receipts in a namespaced registry, and releases settlement only
+when proof and payment bindings match the mission.
+
+The system is layered rather than dependent on a single operator. A portable
+authorization embodiment ends after signed identity, capability, holder-event,
+checkpoint, replay, budget, and redacted-receipt verification. A browser
+extension can hold the mission key and produce those proofs locally without a
+central compute service or TEE. A settlement embodiment adds domain-verifier
+attestation, zero-knowledge compliance proof, registry nullifier consumption,
+and conditional payout.
 
 The architecture is network-aware but not limited to one payment rail. Zeko is
 the native production anchoring and settlement path for this implementation. A
@@ -70,11 +79,11 @@ JWKS so third parties can verify those artifacts offline.
 
 ### Holder Runtime
 
-The holder runtime is the agent execution environment or wallet-like component
-that controls a mission-bound private key. Boundary events must demonstrate
-holder participation through signatures, holder commitments, message
-signatures, wallet signatures, ZK-friendly signatures, or equivalent proof of
-possession.
+The holder runtime is the agent execution environment, browser extension, or
+wallet-like component that controls mission-bound private keys. The portable
+profile binds an Ed25519 key for checkpoint events. The Zeko settlement profile
+also binds a Pallas key for in-circuit proof of possession to the same
+enterprise identity and capability.
 
 The reference implementation supports `ed25519-holder-proof-v1` for
 public-key-verifiable holder participation. `digest-holder-proof-v1` remains
@@ -85,7 +94,10 @@ verifiers.
 
 The domain verifier is the external application, API, merchant, data service,
 private compute service, or agent marketplace that checks whether an action is
-permitted before it performs a side effect.
+permitted before it performs a side effect. Its mission-approved Pallas key
+attests the exact dataset, proof evidence, and output commitments. The
+MissionCompliance circuit verifies that attestation before Zeko can release the
+escrow.
 
 ### Trace Recorder
 
@@ -145,6 +157,8 @@ principalHash
 agentId
 runtimeId
 holderKeyCommitment
+zekoHolderKeyCommitment
+domainVerifierKeyCommitment
 missionId
 allowedDomains
 allowedActions
@@ -153,7 +167,7 @@ paymentRails
 maxSpend
 expiry
 jti
-nullifierSeed
+nullifierCommitment
 settlementReleaseCondition
 ```
 
@@ -261,12 +275,14 @@ txHash
 10. Record a holder-signed boundary event linked to the prior event hash.
 11. Reject replay through idempotency keys, nullifiers, mission execution ids,
     and registry state.
-12. Generate a receipt that binds mission, policy, dataset, output, trace,
-    payment context, and settlement condition.
-13. Prove, using a ZK proof or staged signed-proof system, that the private
-    trace complied with the public mission policy.
-14. Anchor the receipt commitment or receipt root.
-15. Permit settlement release only when the receipt, proof, nullifier, payment
+12. Have the approved domain verifier validate the work evidence and sign the
+    dataset, domain proof, and output commitments.
+13. Generate a receipt that binds mission, policy, dataset, output, trace,
+    domain-verifier attestation, payment context, and settlement condition.
+14. Prove that the private trace complied with policy and that the trusted
+    domain-verifier signature is valid.
+15. Record the proof-bound receipt commitment during registry settlement.
+16. Permit settlement release only when the receipt, proof, nullifier, payment
     authorization, and registry root are valid.
 
 ## ZK Statement
@@ -278,38 +294,50 @@ authorized by the holder key, chained to the prior event, within the mission
 policy, before expiry, not replayed, tied to the dataset/output commitments,
 and bound to the payment commitment and receipt hash.
 
-### Public Inputs
+### Reference Public Inputs
 
 ```text
-issuerRoot
-capabilityHash
-policyHash
+missionIdHash
+authCommitment
+capabilityCommitment
+policyCommitment
+approvalCommitment
 holderKeyCommitment
-traceRoot
-latestEventHash
-receiptHash
+domainVerifierKeyCommitment
+allowedActionsRoot
+allowedDomainsRoot
 datasetCommitment
-outputHash
-paymentCommitment
+domainProofCommitment
+outputCommitment
 paymentContextDigest
+traceRoot
+receiptCommitment
 nullifier
-registryRoot
-expiry
+validUntilSlot
+lastObservedSlot
+maxSpendMicrousd
+totalSpendMicrousd
+eventCount
+beneficiary
+payoutNanomina
+protocolFeeNanomina
 ```
 
-### Private Witness
+### Reference Private Witness
 
 ```text
-normalizedClaims
-claimSalts
-missionPolicy
-boundaryEvents
-domainsAndActions
-holderSignatures
-eventNonces
-policyInclusionMaterial
-paymentAuthorizationDetails
-datasetOpeningMaterial
+principalCommitment
+agentCommitment
+capabilityNonce
+policyNonce
+nullifierSecret
+receiptNonce
+holderPublicKey
+domainVerifierPublicKey
+domainProofSignature
+up to four boundary events
+action and domain Merkle witnesses
+holder signatures
 ```
 
 ### Constraints
@@ -318,18 +346,22 @@ The proof system checks that:
 
 - capability and policy commitments are derived from canonical data;
 - holder proofs verify against the committed holder key;
+- the domain-proof signature verifies against the mission-approved verifier key;
 - each boundary event includes the same mission and capability;
 - each event hash chains to the previous event hash;
 - each action is included in the allowed action set;
 - each target domain or resource is included in the allowed set;
-- event timestamps precede capability and approval expiry;
+- event slots are contiguous, monotonic, and no later than mission expiry;
 - aggregate spend does not exceed the mission budget;
-- data outputs match the declared egress policy;
-- payment authorization binds rail, amount, asset, payer, payee, mission,
-  policy, receipt, and nullifier;
-- the receipt hash is derived from the trace, policy, output, and payment
-  commitments; and
+- the final payment context matches the public payment commitment;
+- the receipt commitment is derived from the trace, policy, dataset, domain
+  proof, output, payment, beneficiary, payout, fee, spend, and nullifier; and
 - the nullifier is unique for the settlement release condition.
+
+The reference circuit verifies a mission-approved Pallas signature over the
+dataset, domain proof, and output commitments. A domain adapter also verifies
+the disclosed proof evidence before accepting a receipt. A composed domain
+circuit can replace the verifier-attestation model.
 
 ## Settlement Release
 
@@ -337,14 +369,16 @@ Settlement release is a conditional transition, not a simple payment callback.
 The settlement verifier checks:
 
 ```text
-approval commitment is anchored
-receipt/root commitment is anchored
+approval commitment is present in MissionRegistry
+receipt commitment is recorded by MissionRegistry settlement
 receipt hash matches submitted receipt
 policy hash matches mission policy
 payment context digest matches authorization
 nullifier has not been spent
 settlement rail is approved for the mission
 proof verifies under the expected verification key
+domain proof attestation verifies under the approved verifier key
+funded escrow matches beneficiary, payout, and protocol fee
 ```
 
 If all checks pass, the settlement state can transition to

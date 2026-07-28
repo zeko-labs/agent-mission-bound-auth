@@ -29,10 +29,10 @@ console.log(JSON.stringify({
     externalAdapterReceipt: protocol.adapterReceipt,
     offlineJwksKid: jwks().keys[0].kid,
     conformanceBundleHash: conformance.bundleHash,
-    liveZeko: {
-      zkapp: "B62qpBXMbrKVJwcS9wQN7SpFb6jkrXn2xrntCoM6D461qL2sYZarPHi",
-      approvalRoot: "18254630832314440409014986041827431424117053312046611743246600167702035963192",
-      receiptRoot: "2503101496281787741527009452532014343190670744041313963524602789905044535138"
+    zekoImplementation: {
+      proofSystem: "zeko-o1js-mission-compliance-v1",
+      registry: "MissionRegistry",
+      trustlessSmoke: "npm run test:zkapp-trustless"
     }
   },
   checks: [
