@@ -1,6 +1,6 @@
 # Agent Mission-Bound Auth
 
-Protocol sidecar and open-source reference implementation for delegated
+Protocol sidecar and source-available reference implementation for delegated
 and autonomous agents.
 
 It binds enterprise identity to a specific mission, signs the approval, enforces checkpoints before side effects, links x402 payment context, and emits portable receipts that can be independently verified and anchored on Zeko.
@@ -224,11 +224,39 @@ The repeatable build and review playbook is packaged as a local Codex skill:
 
 ## License
 
-Agent Mission-Bound Auth is licensed under the Apache License, Version 2.0. See
-[LICENSE](./LICENSE) and [LICENSING.md](./LICENSING.md).
+Agent Mission-Bound Auth is part of the Zeko Agent Protocol Bundle. Protected
+product/protocol-layer code is licensed under BUSL-1.1 with the Zeko Additional
+Use Grant. Adoption-layer materials may be Apache-2.0 or MIT where expressly
+marked.
 
-The source code, SDK surfaces, schemas, examples, and documentation are open
-source and intended for broad use, extension, self-hosting, and integration.
-Zeko Labs may offer hosted services, managed deployments, enterprise support,
-compliance review, SLAs, custom integrations, and dedicated infrastructure as
-separate commercial services. For those services, contact partnerships@zeko.io.
+The current Change Date is 2030-07-17, and the Change License is Apache
+License, Version 2.0. Non-production/testnet use is free under the Additional
+Use Grant. Independent Agent Protocol Bundle production deployments are covered
+by the self-serve commercial deployment license. The current published
+self-serve fee is $0/year, subject to the pricing schedule in
+[PRICING.md](./PRICING.md).
+
+Using the Official Zeko Network or official Zeko-operated or Zeko-authorized
+Agent Protocol Bundle services does not require a separate commercial
+deployment license; users and integrators pay the ordinary network, service,
+usage, transaction, marketplace, gas, prover, bridge, or similar fees applicable
+to those official deployments.
+
+Standard self-serve pricing is published in [PRICING.md](./PRICING.md):
+
+- Protocol Layer Production Deployments: $0/year per production rollup under
+  the current published self-serve pricing.
+- Independent Agent Protocol Deployments: $0/year per deploying legal entity
+  per Deployment Network under the current published self-serve pricing.
+
+Current self-serve pricing is subject to change by a successor pricing schedule,
+ecosystem exception, enterprise agreement, foundation agreement, or other
+written authorization published or approved by Zeko Labs.
+
+The self-serve commercial deployment license covers license rights only.
+Managed deployment, enterprise support, compliance review, SLAs, custom
+integrations, and dedicated infrastructure are separate commercial services.
+
+See [LICENSING.md](./LICENSING.md), [LICENSE](./LICENSE),
+[LICENSES/ZEKO-ADDITIONAL-USE-GRANT.md](./LICENSES/ZEKO-ADDITIONAL-USE-GRANT.md),
+[COMMERCIAL-TERMS.md](./COMMERCIAL-TERMS.md), and [PRICING.md](./PRICING.md).

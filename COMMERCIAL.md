@@ -1,9 +1,9 @@
-# Commercial Services
+# Commercial Terms
 
-This repository is licensed under Apache-2.0 and does not require a separate
-source-code deployment license.
+This file is retained for compatibility with earlier repository references.
 
-Zeko Labs may offer hosted services, managed deployment, enterprise support,
-compliance review, SLAs, custom integrations, dedicated infrastructure, and
-professional services separately. For service inquiries, contact
-partnerships@zeko.io.
+The current commercial deployment terms are summarized in
+[COMMERCIAL-TERMS.md](./COMMERCIAL-TERMS.md). Pricing is published in
+[PRICING.md](./PRICING.md). The controlling source license is
+[LICENSE](./LICENSE), together with the Zeko Additional Use Grant in
+[LICENSES/ZEKO-ADDITIONAL-USE-GRANT.md](./LICENSES/ZEKO-ADDITIONAL-USE-GRANT.md).
