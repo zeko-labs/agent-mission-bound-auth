@@ -1,57 +1,47 @@
-# Append-Only Registry And Nullifiers
+# MissionRegistry And Nullifiers
 
-The production registry is an append-only audit log for mission approval and
-receipt roots. It exists so settlement can be checked independently from the
-application that performed the work.
+MBA production settlement uses `MissionRegistry`, not a client-computed rolling
+hash.
 
-## Anchor Fields
-
-```ts
-type MissionAnchor = {
-  registryVersion: "mba-registry-v1";
-  sequence: number;
-  missionIdHash: string;
-  capabilityHash: string;
-  statementHash: string;
-  payloadDigest: string;
-  receiptIdHash: string;
-  nullifier: string;
-  previousRoot: string;
-  newRoot: string;
-  anchoredAt: string;
-  networkId: string;
-  registryAddress: string | null;
-  txHash: string | null;
-  proofHash: string;
-  anchorId: string;
-};
-```
-
-The verifier treats `sequence`, `previousRoot`, `newRoot`, and `nullifier` as
-registry-derived or verifier-checkable fields. They are not trusted merely
-because a client included them in JSON.
-
-`buildRegistryAnchorFromReceipt` accepts a portable receipt, Zeko proof
-artifact, relayer response, zkApp/registry address, transaction hash, and root
-inputs, then returns the canonical `mba-registry-v1` anchor plus a verifier
-result. This keeps relayer integrations deterministic and easy to audit.
-
-## Nullifier Rule
-
-Every settlement-capable receipt carries a nullifier derived from the mission
-capability and settlement release condition. A registry or settlement verifier
-must reject the second use of the same nullifier as `duplicate_payment`.
-
-## Settlement Lifecycle
-
-Settlement release follows this state path:
+The contract stores one namespaced `MerkleMap` root. Keys are Poseidon hashes
+with distinct namespaces for:
 
 ```text
-receipt_created -> proof_prepared -> proof_verified -> anchor_prepared
-anchor_prepared -> anchored -> settlement_release_allowed -> settled
+approval     capability -> approval commitment
+revocation   capability -> revoked flag
+nullifier    nullifier -> spent flag
+receipt      receipt commitment -> settlement leaf
+escrow       mission + nonce -> escrow status and terms
 ```
 
-Release decisions are valid only once the receipt is anchored and reaches
-`settlement_release_allowed`. Verifiers reject duplicate nullifiers, expired
-authorization, disallowed rails, unsupported state transitions, and release
-attempts from earlier states.
+A settlement proof is accepted only if the approval is present, revocation is
+absent, nullifier and receipt are unused, and escrow is active. Nullifier,
+receipt, and escrow changes occur in one transaction, so duplicate payout
+cannot race a successful settlement.
+
+Every root-changing approval, revocation, funding, settlement, or refund
+transition advances the registry sequence.
+
+Authority signatures include the operation namespace, registry address,
+current sequence, and target commitments. A signature for one deployment or
+sequence cannot authorize another.
+
+## Anchor Evidence
+
+`mba-zeko-registry-anchor-v1` binds:
+
+- registry address, transaction hash, sequence, and resulting registry root
+- mission, capability, approval, receipt, nullifier, and payment commitments
+- beneficiary, payout, protocol fee, and proof artifact hash
+
+Portable verification first checks artifact integrity and proof binding, then
+verifies the o1js proof against a trusted key, confirms the transaction is
+included, and checks the registry state. Historical anchors require an
+archive-backed event verifier because the current root may have advanced.
+
+## Local Witness Index
+
+The Zeko scripts rebuild witnesses from
+`MISSION_REGISTRY_STATE_PATH`. Writes are atomic, but a production operator
+must serialize writers and store the index in transactional,
+access-controlled, backed-up storage. Root mismatch against Zeko fails closed.

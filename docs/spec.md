@@ -1,203 +1,201 @@
-# ZK Mission Authorization Protocol 0.1
+# Agent Mission-Bound Auth Protocol 1.0 Draft
 
 ## Purpose
 
-Agent Mission-Bound Auth is a task-bound control protocol for delegated and autonomous agents.
+MBA answers:
 
-It answers:
-
-> Is this exact agent, representing this exact principal, approved to perform this exact action, against this exact resource, right now?
-
-The protocol combines enterprise identity, task-bound approval, x402 payment, checkpoint enforcement, and Zeko anchoring.
+> Is this holder, representing this verified principal through this agent,
+> authorized to perform this mission, and did the resulting boundary trace
+> satisfy its policy before settlement?
 
 ## Actors
 
-- **Agent**: autonomous or delegated software actor.
-- **Represented principal**: user, organization, or service the agent acts for.
-- **Mission authority**: service that issues agent passports and mission approvals.
-- **Approver**: human, policy engine, IdP, or governance system approving a mission.
-- **Domain app**: application performing the actual work or side effect.
-- **Verifier**: party checking passports, approvals, bundles, receipts, or Zeko roots.
+- **Enterprise IdP:** Auth0, Okta, or another OIDC provider.
+- **Mission authority:** normalizes identity and signs attestations, passports,
+  approvals, and capabilities.
+- **Approver:** verified human or policy principal authorizing the mission.
+- **Holder:** agent runtime controlling the mission-bound key.
+- **Domain app:** performs private compute or another external action.
+- **Payer and beneficiary:** fund and receive mission settlement.
+- **Verifier:** checks portable artifacts, proofs, and Zeko evidence.
+- **MissionRegistry:** Zeko zkApp enforcing approval, revocation, nullifier,
+  receipt, escrow, payout, and fee rules.
+
+## Profiles
+
+Authorization and settlement are independent protocol axes:
+
+```text
+MISSION_AUTH_PROFILE=demo | portable | production
+MISSION_SETTLEMENT_PROFILE=none | zeko
+```
+
+`demo` permits deterministic fixtures, mock payments, and proofs-disabled local
+simulation. `portable` requires production identity, authority signatures,
+holder signatures, replay controls, and durable enforcement without requiring
+settlement. `production` with `zeko` adds Pallas bindings, domain verification,
+x402 settlement, MissionCompliance proofs, and MissionRegistry finality.
+
+Verifiers MUST reject demo proof schemes in secure auth profiles. A portable
+artifact MUST NOT claim Zeko settlement finality without the proof and
+chain-backed registry evidence required by the settlement profile.
 
 ## Discovery
-
-Mission authorities publish:
 
 ```text
 GET /.well-known/agent-authorization.json
 GET /.well-known/mission-authority-jwks.json
 ```
 
-The first document describes protocol endpoints and capabilities. The second publishes public signing keys for offline verification.
+## Identity
 
-## Agent Passport
+The OIDC authorization-code flow uses PKCE, single-use state, nonce, provider
+discovery, pinned issuer and client audience, expiry, and JWKS signature
+verification. Provider claims normalize into agent, organization, scope, data,
+rail, and budget claims.
 
-`agent-passport-v1` identifies:
+`mba-enterprise-identity-attestation-v1` contains only hashed provider subject
+identity, normalized grants, authorization commitments, expiry, and authority
+JWS. Production passport and approval issuance requires this attestation.
 
-- `agentId`
-- `agentIdentifier`
-- represented principal
-- vouching parties
-- agent key binding
-- mission-authority JWS
+`agent-passport-v1` identifies the agent, represented organization, vouching
+IdP, Ed25519 checkpoint key, and authority signature. Zeko settlement passports
+also bind the Pallas proof key.
 
-The passport is portable and can be verified offline.
+## Mission, Approval, And Capability
 
-## Mission
+`mission-bound-agent-auth-v1` defines task, resources, operation, actions,
+scopes, rails, budget, checkpoints, privacy constraints, and expiry.
 
-`mission-bound-agent-auth-v1` is a task-bound scope object.
+`mission-approval-v1` binds a verified approver and signed mission snapshot.
 
-It defines:
-
-- agent
-- represented principal
-- natural-language task
-- dataset/resource
-- operation
-- allowed tools
-- allowed OAuth/resource scopes
-- allowed payment rails
-- spend and data-egress constraints
-- required checkpoints
-- expiry
-
-## Capability
-
-`mission-bound-capability-v1` is the hardened authority object used by
-portable receipts and settlement. It explicitly binds:
-
-- `capabilityId`
-- `jti`
-- `nullifierSeed`
-- represented principal hash
-- agent/runtime id
-- holder key commitment
-- mission id hash
-- allowed domains/actions
-- data scopes
-- payment rails
-- max spend
-- expiry
-- settlement release condition
-
-The capability hash is the authority commitment downstream receipts and
-registry anchors reference.
-
-### Capability Renewal
-
-`mission-bound-capability-renewal-v1` renews short-lived capabilities without
-widening authority. A valid renewal keeps the same mission, holder key,
-principal, agent, issuer, and audience; references the previous capability
-hash; uses a fresh `jti` and nullifier; increments the renewal counter; and
-keeps domains, actions, data scopes, payment rails, and spend limit the same or
-narrower.
-
-## Approval
-
-`mission-approval-v1` binds an approver to a mission.
-
-It includes a mission snapshot so a domain app can verify the approval without querying the original server. It is signed as ES256 JWS and may include a Zeko anchor reference.
-
-Production mission authorities require an authority bearer token for passport,
-mission proposal, approval, and revocation endpoints. Local tutorial mode keeps
-those endpoints open for demonstration.
-
-## Checkpoints
-
-Recommended checkpoints:
-
-- `before_payment_offer`
-- `before_private_compute`
-- `before_external_side_effect`
-- `after_receipt`
-
-Domain apps call the stateless verifier:
+`mission-bound-capability-v1` binds:
 
 ```text
-POST /api/mission/verify-checkpoint
+issuer and audience
+principal and OIDC authorization commitments
+identity-attestation and approval hashes
+agent and runtime
+holder key commitment
+Zeko binding with the Pallas holder and trusted domain-verifier commitments
+  when MISSION_SETTLEMENT_PROFILE=zeko
+mission and policy hashes
+allowed domains, actions, data scopes, and payment rails
+exact decimal spend cap and expiry
+jti and nullifier commitment
+settlement release condition
+authority JWS
 ```
 
-or verify the approval offline using the JWKS and enforce equivalent policy locally.
+Nullifier secrets are private and never exported. Renewal preserves identity,
+mission, approval, policy, issuer, audience, and all holder and verifier keys
+present in the active profile; uses a fresh `jti` and nullifier commitment; and
+may only narrow authority.
 
-Mission authorities or trusted domain services call the stateful enforcement
-endpoint:
+## Boundary Events
+
+Canonical high-value checkpoints are:
 
 ```text
-POST /api/mission/enforce-checkpoint
+before_payment_offer
+before_private_compute
+before_external_side_effect
+after_receipt
 ```
 
-In production, stateful enforcement requires the authority bearer token and
-durable state. Its checkpoint context must include a `missionExecutionId`.
-Compute and side-effect checkpoints must also include an `idempotencyKey`,
-`paymentId`, or `sideEffectId` so the authority can reject replay. When
-`spendUsd` or `amountUsd` is present, the authority applies the mission budget
-counter before accepting the checkpoint.
+Production events require a holder signature, mission execution ID,
+idempotency key, expiry, and exact action/resource/payment context. Events form
+an append-only hash chain. Public trace exports are redacted.
 
-## Browser Missions
+## MissionCompliance Statement
 
-Browser/helper-agent workflows use four additional portable objects:
-
-- `mba-browser-mission-profile-v1`: holder/runtime/session/tab commitments,
-  current URL/domain hashes, page-state class, next-action score, stop reason,
-  and checkout checkpoint.
-- `mba-redacted-trace-v1`: public hash-only trace summary with no raw URLs,
-  selectors, page text, form values, addresses, emails, or payment labels.
-- `mba-human-handoff-v1`: proof that the agent stopped before login, payment,
-  final submit, uncertainty, budget breach, or policy conflict.
-- `mba-execution-bundle-v1`: portable export containing capability, policy,
-  browser profile, redacted trace, handoff receipt, receipt, Zeko anchor,
-  settlement state, verifier links, and owner-only trace commitment.
-
-Browser missions should use `production_strict` verification for production
-settlement paths.
-
-## Bundle
-
-`zk-mission-bundle-v1` is the portable handoff object containing:
-
-- agent passport
-- mission
-- approval
-- auth commitments
-- payment receipt
-- domain receipt
-- Zeko references
-
-The `bundleHash` is the canonical audit handle.
-
-## Zeko Anchoring
-
-Zeko roots provide independent auditability:
-
-- `authRoot`: mission approval / authorization commitments
-- `receiptRoot`: execution receipt commitments
-- `datasetRoot`: optional committed dataset registry
-
-Production deployments should anchor both:
+`mba-mission-compliance-proof-v1` is an o1js proof whose public input binds:
 
 ```text
-Before action: approval commitment
-After action: execution receipt commitment
+mission, auth, capability, policy, approval, and holder commitments
+trusted domain-verifier key commitment
+allowed action and domain Merkle roots
+dataset, domain proof, output, and payment commitments
+trace root, receipt commitment, and nullifier
+mission expiry, last observed slot, spend cap, actual spend, and event count
+beneficiary, payout, and protocol fee
 ```
 
-## Portable Verification
+Private input contains commitment secrets, holder and domain-verifier public
+keys, the domain-verifier signature, holder-signed events, and action/domain
+membership witnesses. The v1 circuit supports four events and proves
+contiguity, membership, both signature classes, expiry, trace, final payment
+context, and aggregate budget.
 
-Portable verifiers can independently check:
+The circuit verifies a mission-approved Pallas signature over the mission,
+capability, policy, dataset, domain proof, and output commitments. Production
+receipt verification then calls the configured domain adapter to validate the
+proof's semantics. A composed domain circuit can replace the attestation model.
 
-- capability hash and nullifier construction
-- renewal proof preserves mission and narrows authority
-- boundary event holder-proof binding
-- trace hash chain continuity
-- browser profile and redacted trace privacy
-- receipt hash, policy hash, payment context, and settlement state
-- registry anchor payload digest and receipt linkage
+Canonical strings and objects map to Mina fields by
+`mba-zeko-encoding-v1`: canonical JSON or NFC string bytes, SHA-256, then
+reduction modulo the Mina field order. Monetary values use integer microusd,
+nanomina, or asset base units.
 
-See [receipt format](./receipt-format.md), [boundary events](./boundary-events.md),
-[registry/nullifiers](./registry-nullifiers.md), and
-[public verifier CLI](./verifier-cli.md).
+## Registry And Settlement
+
+MissionRegistry stores one namespaced Merkle root and sequence. Namespace keys
+separate approvals, revocations, nullifiers, receipts, and escrows. Every root
+transition advances the sequence.
+
+Settlement requires:
+
+1. valid MissionCompliance proof;
+2. unexpired mission and escrow;
+3. matching mission, beneficiary, payout, and fee;
+4. approval membership;
+5. revocation non-membership;
+6. unused nullifier and receipt slots; and
+7. active funded escrow.
+
+The transaction consumes the nullifier, records the receipt, closes escrow, and
+pays beneficiary plus fee recipient atomically. Any caller may submit a valid
+proof; no relayer is trusted with settlement authority.
+
+## x402
+
+MBA uses x402 v2:
+
+```text
+server -> client  PAYMENT-REQUIRED
+client -> server  PAYMENT-SIGNATURE
+server -> client  PAYMENT-RESPONSE
+```
+
+Networks use CAIP-2 and amounts use integer asset base units. Ethereum and Base
+use the EVM facilitator path. Arc and Tempo remain preview until chain-specific
+facilitator and end-to-end settlement tests are enabled.
+
+## Settlement Verification
+
+A production Zeko settlement verifier:
+
+1. validates strict schemas and authority JWS artifacts;
+2. verifies the receipt's signed capability against trusted authority JWKS;
+3. matches its Zeko binding and settlement nullifier to the receipt and proof;
+4. checks holder events and receipt bindings;
+5. verifies the concrete o1js proof against a pinned verification key and
+   circuit digest;
+6. verifies the domain proof evidence and its Pallas attestation;
+7. checks that named public input matches serialized proof input;
+8. confirms the Zeko transaction and registry state; and
+9. rejects historical roots unless an archive-backed verifier proves the
+   corresponding event.
+
+A receipt or client-computed anchor alone never authorizes payout.
+
+Portable verification ends after trusted authority JWS validation, capability
+binding, Ed25519 holder-event validation, trace continuity, replay protection,
+budget enforcement, and the domain application's checkpoint decision. It does
+not require or imply payout finality.
 
 ## Non-Goals
 
-The protocol does not define domain-specific work. Apps still own their own private compute, trading, procurement, email, code execution, or payment semantics.
-
-The included private-compute UI is a tutorial harness, not part of the protocol.
+MBA does not define application-specific work, prove that an LLM reasoned
+correctly, guarantee merchant fulfillment, or prove domain computation unless
+the bound domain proof is independently verified.

@@ -1,6 +1,10 @@
 # Integrating ZK Mission Auth
 
-This guide shows how a domain app plugs into the protocol. The local private-compute UI is only a tutorial harness; production apps should integrate at the protocol endpoints below.
+This guide shows how a domain app plugs into the protocol. The local
+private-compute UI is only a tutorial harness; production apps should integrate
+at the protocol endpoints below. Choose
+[portable authorization or Zeko settlement](./profiles.md) before provisioning
+keys.
 
 ## 1. Discover The Control Plane
 
@@ -16,7 +20,9 @@ const discovery = await auth.discover();
 ```js
 const { agentPassport } = await auth.createAgentPassport({
   agentId: "agent-research-ops-001",
-  organization: "Northstar Bio"
+  organization: "Northstar Bio",
+  identityAttestation,
+  holderKeyCommitment
 });
 
 const { mission } = await auth.proposeMission({
@@ -24,9 +30,10 @@ const { mission } = await auth.proposeMission({
   datasetId: "clinical-failures-q1",
   operation: "risk-summary",
   task: "Summarize the private clinical risk.",
-  allowedTools: ["private_compute.run", "x402.pay", "x402.settle", "your_app.side_effect"],
+  allowedDomains: ["compute.example"],
+  allowedTools: ["private_compute.run", "your_app.side_effect"],
   allowedScopes: ["compute:clinical", "dataset:clinical-failures-q1"],
-  allowedRails: ["zeko", "base"]
+  allowedRails: []
 });
 
 const { approval } = await auth.approveMission({
@@ -86,16 +93,28 @@ const jwks = await auth.jwks();
 verifyMissionBundle(bundle, jwks);
 ```
 
-## 5. Anchor When Needed
+This is the complete portable authorization flow. A browser extension can own
+the Ed25519 key and produce the boundary events locally; the application only
+needs the signed artifacts and mission-authority JWKS.
 
-Use:
+## 5. Add Zeko Settlement
+
+For the Zeko settlement profile, add the holder Pallas key to the passport and
+approval, prepare the authority-signed Zeko capability binding, obtain the approved
+domain-verifier attestation, compile the MissionCompliance inputs, and produce
+the proof. Then use the registry lifecycle:
 
 ```bash
-npm run smoke:live-approval-anchor
-npm run smoke:live-anchor
+npm run zkapp:anchor-approval
+npm run zkapp:fund-mission
+npm run zkapp:settle-mission
+npm run zkapp:get-state
 ```
 
-for the reference Zeko anchoring path. Production apps can anchor approval and execution roots directly or ask this control plane to do it.
+Production-final receipts include the concrete proof artifact and canonical
+MissionRegistry anchor. The settlement verifier checks the trusted domain
+attestation, domain evidence, proof, transaction, root, sequence, and
+nullifier.
 
 ## 6. Run A Conformance Check
 
