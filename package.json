@@ -49,6 +49,7 @@
     "test:ci": "npm run zkapp:build && npm run test:schemas && npm run test:profiles && npm run test:protocol-bindings && npm run test:x402-v2 && npm run test:zeko-chain-query && npm run test:zeko-inputs && npm run test:browser-helper-conformance && npm run test:conformance && npm run test:production-hardening && npm run test:zkapp-trustless && npm test",
     "smoke:protocol": "node scripts/protocol-smoke.mjs",
     "test:conformance": "node scripts/conformance.mjs",
+    "generate:conformance": "CONFORMANCE_OUTPUT=examples/generated-conformance-artifacts.json node scripts/conformance.mjs",
     "test:browser-helper-conformance": "node scripts/browser-helper-conformance.mjs",
     "test:conformance:remote": "CONFORMANCE_BASE_URL=${CONFORMANCE_BASE_URL:-http://127.0.0.1:8787} node scripts/conformance.mjs",
     "test:oauth-sandbox": "node scripts/oauth-sandbox-smoke.mjs",

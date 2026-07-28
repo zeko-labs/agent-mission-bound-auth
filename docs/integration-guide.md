@@ -130,7 +130,10 @@ Against a running implementation:
 CONFORMANCE_BASE_URL=https://auth.example npm run test:conformance:remote
 ```
 
-The remote conformance check exercises discovery, JWKS, passport issuance, mission proposal, approval, checkpoint verification, bundle export, schema validation, and offline JWS verification.
+The remote conformance check exercises discovery, JWKS, passport issuance,
+mission proposal, approval, checkpoint verification, bundle export, schema
+validation, and offline JWS verification. Tests do not rewrite the checked-in
+example. Refresh it deliberately with `npm run generate:conformance`.
 
 ## 7. Start From The External App Starter
 

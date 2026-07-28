@@ -145,7 +145,13 @@ const run = process.env.CONFORMANCE_BASE_URL
 
 validateArtifacts(run.artifacts, run.keySet);
 
-fs.writeFileSync("examples/generated-conformance-artifacts.json", JSON.stringify(run.artifacts, null, 2));
+const outputPath = process.env.CONFORMANCE_OUTPUT ?? null;
+if (outputPath) {
+  fs.writeFileSync(
+    outputPath,
+    JSON.stringify(run.artifacts, null, 2)
+  );
+}
 
 console.log(JSON.stringify({
   ok: true,
@@ -155,6 +161,6 @@ console.log(JSON.stringify({
   schemas: 5,
   signatures: ["agentPassport", "approval"],
   bundleIntegrity: "sha256",
-  output: "examples/generated-conformance-artifacts.json",
+  output: outputPath,
   bundleHash: run.artifacts.bundle.bundleHash
 }, null, 2));
