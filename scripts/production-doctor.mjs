@@ -1,5 +1,11 @@
 import fs from "node:fs";
 import { loadLocalEnv } from "../packages/protocol/env-local.js";
+import {
+  isSettlementEnabled,
+  isZekoSettlementProfile,
+  missionAuthProfile,
+  missionSettlementProfile
+} from "../packages/protocol/runtime.js";
 
 loadLocalEnv();
 
@@ -9,27 +15,6 @@ function required(name) {
     present: Boolean(process.env[name]),
     value: process.env[name] ? "set" : "missing"
   };
-}
-
-function validJsonJwks(name) {
-  const value = process.env[name];
-  if (!value) return { name, present: false, ok: false, reason: "missing" };
-  try {
-    const parsed = JSON.parse(value);
-    return {
-      name,
-      present: true,
-      ok: Array.isArray(parsed.keys) && parsed.keys.length > 0,
-      keyCount: Array.isArray(parsed.keys) ? parsed.keys.length : 0
-    };
-  } catch (error) {
-    return {
-      name,
-      present: true,
-      ok: false,
-      reason: error instanceof Error ? error.message : String(error)
-    };
-  }
 }
 
 async function checkJwks() {
@@ -52,6 +37,13 @@ async function checkJwks() {
 }
 
 async function checkZeko() {
+  if (!isZekoSettlementProfile()) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: "Zeko settlement profile is not active."
+    };
+  }
   const graphql = process.env.ZEKO_GRAPHQL?.endsWith("/graphql")
     ? process.env.ZEKO_GRAPHQL
     : `${(process.env.ZEKO_GRAPHQL ?? "https://testnet.zeko.io").replace(/\/$/, "")}/graphql`;
@@ -87,28 +79,37 @@ const authority = [
   required("MISSION_AUTHORITY_PRIVATE_JWK"),
   required("MISSION_APPROVAL_BEARER_TOKEN"),
   required("MISSION_STATE_PATH"),
-  required("REVOCATION_STATE_PATH")
+  required("REVOCATION_STATE_PATH"),
+  ...(isZekoSettlementProfile()
+    ? [required("DOMAIN_VERIFIER_PALLAS_PUBLIC_KEYS_JSON")]
+    : [])
 ];
-const settlement = [
-  {
-    name: "X402_TRUST_FACILITATOR_RECEIPTS",
-    present: Boolean(process.env.X402_TRUST_FACILITATOR_RECEIPTS),
-    value: process.env.X402_TRUST_FACILITATOR_RECEIPTS ? "set" : "missing",
-    ok: process.env.X402_TRUST_FACILITATOR_RECEIPTS === "true"
-  },
-  required("X402_FACILITATOR_ISSUER"),
-  required("X402_FACILITATOR_AUDIENCE"),
-  validJsonJwks("X402_FACILITATOR_JWKS_JSON")
-];
-const zekoDeploy = [
-  required("DEPLOYER_PRIVATE_KEY"),
-  required("ZKAPP_PRIVATE_KEY"),
-  required("PRIVATE_COMPUTE_BENEFICIARY_PUBLIC_KEY"),
-  required("ZEKO_GRAPHQL")
-];
+const settlement = isSettlementEnabled()
+  ? [required("X402_FACILITATOR_URL")]
+  : [];
+const zekoDeploy = isZekoSettlementProfile()
+  ? [
+      required("DEPLOYER_PRIVATE_KEY"),
+      required("ZKAPP_PRIVATE_KEY"),
+      required("MISSION_AUTHORITY_ZEKO_PRIVATE_KEY"),
+      required("MISSION_PROTOCOL_FEE_RECIPIENT"),
+      required("MISSION_REGISTRY_PUBLIC_KEY"),
+      required("MISSION_REGISTRY_STATE_PATH"),
+      required("ZEKO_GRAPHQL")
+    ]
+  : [];
 const zkappBuild = {
-  ok: fs.existsSync("dist-zkapp/PrivateComputeAccess.js"),
-  path: "dist-zkapp/PrivateComputeAccess.js"
+  ok:
+    !isZekoSettlementProfile() ||
+    (
+      fs.existsSync("dist-zkapp/MissionComplianceProgram.js") &&
+      fs.existsSync("dist-zkapp/MissionRegistry.js")
+    ),
+  skipped: !isZekoSettlementProfile(),
+  paths: [
+    "dist-zkapp/MissionComplianceProgram.js",
+    "dist-zkapp/MissionRegistry.js"
+  ]
 };
 const jwks = await checkJwks();
 const zeko = await checkZeko();
@@ -124,6 +125,10 @@ const ok =
 
 console.log(JSON.stringify({
   ok,
+  profiles: {
+    auth: missionAuthProfile(),
+    settlement: missionSettlementProfile()
+  },
   oidc,
   authority,
   settlement,

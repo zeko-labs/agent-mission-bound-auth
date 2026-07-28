@@ -46,6 +46,10 @@ function schema(name) {
 }
 
 function assertType(value, expected, path) {
+  if (expected === "integer") {
+    if (!Number.isInteger(value)) throw new Error(`${path} must be integer`);
+    return;
+  }
   if (expected === "array") {
     if (!Array.isArray(value)) throw new Error(`${path} must be array`);
     return;
@@ -148,7 +152,7 @@ const capability = buildMissionCapability({
 const { capability: renewedCapability, renewal } = renewMissionCapability(capability, {
   allowedActions: ["browser.open", "page.read", "cart.prepare", "checkout.review"],
   maxSpendUsd: "20.00",
-  expiresAt: new Date(Date.now() + 900_000).toISOString(),
+  expiresAt: new Date(Date.now() + 300_000).toISOString(),
   renewalReason: "mission_capability_expired"
 });
 assert.equal(verifyCapabilityRenewal(renewal, capability, renewedCapability).valid, true);
@@ -228,7 +232,7 @@ compatEvent.holderProof = signCompatProof({
   event: compatEvent,
   privateKey: keys.privateKey,
   publicJwk,
-  appChallengeHash: sha256Hex({ app: "browser-helper", challenge: "browser-proof-of-possession" })
+  appChallengeHash: compatEvent.holderProof.messageHash
 });
 const compatEventEnvelope = recomputeEventEnvelope(compatEvent);
 const compatAccepted = verifyBoundaryEvent(compatEventEnvelope, { verifierMode: "compatibility" });
@@ -344,10 +348,13 @@ const anchoredReceipt = buildMissionReceiptExport({
   },
   settlementState: "settlement_release_allowed"
 });
-assert.equal(verifyProductionStrictReceipt(anchoredReceipt).valid, true);
+const legacyStrictReceipt = verifyProductionStrictReceipt(anchoredReceipt);
+assert.equal(legacyStrictReceipt.valid, false);
+assert.match(legacyStrictReceipt.reason, /concrete Zeko mission compliance proof/);
 assert.equal(verifySettlementState(anchoredReceipt, {
   allowedRails: ["zeko"],
-  spentNullifiers: []
+  spentNullifiers: [],
+  allowUnverifiedDemoEvidence: true
 }).decision, "release_allowed");
 
 const transitions = [
@@ -443,11 +450,11 @@ console.log(JSON.stringify({
     "browser-profile",
     "capability-renewal",
     "production-strict-holder-proof",
-    "compatibility-holder-proof-rejected-in-strict",
+    "compatibility-holder-proof-bound-and-rejected-in-production",
     "redacted-trace",
     "new-schema-validation",
     "handoff-receipt",
-    "registry-anchor-helper",
+    "legacy-anchor-rejected-without-zk-proof",
     "settlement-lifecycle",
     "execution-bundle",
     "cli-bundle-verifier"

@@ -1,11 +1,15 @@
 import { decodeJson, encodeJson, hmacSha256Hex, id, sha256Hex } from "./digest.js";
 import { enabledRails, findRail } from "./rails.js";
-import { isProductionProfile } from "./runtime.js";
-import { verifyJws } from "./authority-keys.js";
+import {
+  isProductionProfile,
+  isSettlementEnabled
+} from "./runtime.js";
 
 export const PAYMENT_REQUIRED = "PAYMENT-REQUIRED";
-export const PAYMENT = "PAYMENT";
+export const PAYMENT_SIGNATURE = "PAYMENT-SIGNATURE";
+export const PAYMENT = PAYMENT_SIGNATURE;
 export const PAYMENT_RESPONSE = "PAYMENT-RESPONSE";
+export const MBA_X402_EXTENSION = "agent-mission-bound-auth";
 
 function baseUrl() {
   return process.env.BASE_URL ?? `http://${process.env.HOST ?? "127.0.0.1"}:${process.env.PORT ?? "8787"}`;
@@ -29,34 +33,6 @@ function stripAuthorizationDigest(payload) {
   return rest;
 }
 
-let cachedFacilitatorJwks = null;
-let cachedFacilitatorJwksRaw = null;
-
-function facilitatorJwks() {
-  const raw = process.env.X402_FACILITATOR_JWKS_JSON;
-  if (!raw) throw new Error("X402_FACILITATOR_JWKS_JSON is required for trusted facilitator receipts.");
-  if (cachedFacilitatorJwks && cachedFacilitatorJwksRaw === raw) return cachedFacilitatorJwks;
-  const parsed = JSON.parse(raw);
-  if (!Array.isArray(parsed.keys)) throw new Error("X402_FACILITATOR_JWKS_JSON must contain keys[].");
-  cachedFacilitatorJwks = parsed;
-  cachedFacilitatorJwksRaw = raw;
-  return parsed;
-}
-
-function facilitatorClockToleranceSeconds() {
-  const raw = process.env.X402_FACILITATOR_CLOCK_TOLERANCE_SECONDS ?? "60";
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 300) {
-    return { ok: false, reason: "X402_FACILITATOR_CLOCK_TOLERANCE_SECONDS must be a finite value between 0 and 300." };
-  }
-  return { ok: true, seconds: parsed };
-}
-
-function assertEqual(actual, expected, reason) {
-  if (actual !== expected) return { ok: false, reason };
-  return { ok: true };
-}
-
 function sameAsset(expected, actual) {
   if (actual === undefined || actual === null) return false;
   try {
@@ -66,50 +42,94 @@ function sameAsset(expected, actual) {
   }
 }
 
-function buildPaymentRequired(input) {
+function extensionSchema() {
   return {
-    protocol: "x402",
-    version: "2",
-    requestId: id("x402req", {
-      serviceId: input.serviceId,
-      sessionId: input.sessionId,
-      turnId: input.turnId,
-      accepts: input.rails.map((rail) => ({
+    type: "object",
+    required: ["requestId", "serviceId"],
+    properties: {
+      requestId: { type: "string" },
+      serviceId: { type: "string" },
+      outputType: { type: "string" },
+      proofBundleUrl: { type: "string" },
+      verifyUrl: { type: "string" }
+    }
+  };
+}
+
+function publicRequirement(rail) {
+  return {
+    scheme: "exact",
+    network: rail.network,
+    amount: rail.amount,
+    asset: rail.assetId,
+    payTo: rail.payTo,
+    maxTimeoutSeconds: 60,
+    extra: {
+      ...(rail.asset?.symbol ? { name: rail.asset.symbol } : {}),
+      ...(rail.asset?.symbol === "USDC" ? { version: "2" } : {}),
+      mba: {
+        railId: rail.id,
         settlementRail: rail.settlementRail,
-        network: rail.network,
-        amount: rail.amount,
+        chainName: rail.chainName,
+        settlementModel: rail.settlementModel,
         asset: rail.asset,
-        payTo: rail.payTo
-      }))
-    }),
-    resource: `${input.baseUrl}/api/x402/proof?sessionId=${encodeURIComponent(input.sessionId)}`,
-    description: input.description,
-    mimeType: "application/json",
-    seller: { serviceId: input.serviceId },
-    accepts: input.rails.map((rail) => ({
-      scheme: "exact",
-      settlementRail: rail.settlementRail,
-      network: rail.network,
-      asset: rail.asset,
-      price: rail.amount,
-      amount: rail.amount,
-      payTo: rail.payTo,
-      settlementModel: rail.settlementModel,
-      description: rail.description ?? input.description,
-      mimeType: "application/json",
-      outputSchema: {
-        type: input.outputType,
-        proofBundleUrl: input.proofBundleUrl,
-        verifyUrl: input.verifyUrl
-      },
-      extensions: rail.extensions ?? {}
-    }))
+        preview: rail.preview,
+        extensions: rail.extensions ?? {}
+      }
+    }
+  };
+}
+
+export function paymentRequirementId(requirement) {
+  return requirement?.extensions?.[MBA_X402_EXTENSION]?.info?.requestId ?? null;
+}
+
+export function paymentRailId(paymentPayload) {
+  return (
+    paymentPayload?.accepted?.extra?.mba?.railId ??
+    paymentPayload?.extensions?.[MBA_X402_EXTENSION]?.info?.railId ??
+    paymentPayload?.railId ??
+    null
+  );
+}
+
+function buildPaymentRequired(input) {
+  const accepts = input.rails.map(publicRequirement);
+  const requestId = id("x402req", {
+    serviceId: input.serviceId,
+    sessionId: input.sessionId,
+    turnId: input.turnId,
+    accepts
+  });
+  return {
+    x402Version: 2,
+    error: "PAYMENT-SIGNATURE header is required",
+    resource: {
+      url: `${input.baseUrl}/api/compute`,
+      description: input.description,
+      mimeType: "application/json"
+    },
+    accepts,
+    extensions: {
+      [MBA_X402_EXTENSION]: {
+        info: {
+          requestId,
+          serviceId: input.serviceId,
+          outputType: input.outputType,
+          proofBundleUrl: input.proofBundleUrl,
+          verifyUrl: input.verifyUrl
+        },
+        schema: extensionSchema()
+      }
+    }
   };
 }
 
 export function buildPaymentRequirement(job) {
   const rails = enabledRails();
-  const railByNetwork = new Map(rails.map((rail) => [rail.network, rail]));
+  if (rails.length === 0) {
+    throw new Error("No production x402 settlement rails are configured.");
+  }
   const requirement = buildPaymentRequired({
     serviceId: "agent-mission-bound-auth",
     baseUrl: baseUrl(),
@@ -122,23 +142,14 @@ export function buildPaymentRequirement(job) {
     rails
   });
 
-  return {
-    ...requirement,
-    requestId: id("req", {
-      upstreamRequestId: requirement.requestId,
-      jobId: job.jobId,
-      datasetId: job.datasetId,
-      operation: job.operation
-    }),
-    accepts: requirement.accepts.map((option) => {
-      const sourceRail = railByNetwork.get(option.network);
-      return {
-        ...option,
-        railId: sourceRail?.id ?? option.network,
-        chainName: sourceRail?.chainName ?? option.extensions?.evm?.chainName ?? option.network
-      };
-    })
-  };
+  const upstreamRequestId = paymentRequirementId(requirement);
+  requirement.extensions[MBA_X402_EXTENSION].info.requestId = id("req", {
+    upstreamRequestId,
+    jobId: job.jobId,
+    datasetId: job.datasetId,
+    operation: job.operation
+  });
+  return requirement;
 }
 
 export function encodeRequirement(requirement) {
@@ -151,20 +162,22 @@ export function decodePaymentHeader(header) {
 }
 
 export function buildMockPayment(requirement, railId, payer = "demo-agent-wallet") {
-  const option = requirement.accepts.find((item) => item.railId === railId);
+  if (isProductionProfile()) {
+    throw new Error("Mock x402 payments are disabled in production profile.");
+  }
+  const option = requirement.accepts.find((item) => item.extra?.mba?.railId === railId);
   if (!option) {
     throw new Error(`Unknown rail ${railId}`);
   }
 
   const issuedAtIso = new Date().toISOString();
   const expiresAtIso = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-  const unsigned = {
-    protocol: "x402",
-    version: "2",
-    requestId: requirement.requestId,
-    paymentId: id("pay", { requestId: requirement.requestId, railId, payer, issuedAtIso }),
+  const requestId = paymentRequirementId(requirement);
+  const mba = {
+    requestId,
+    paymentId: id("pay", { requestId, railId, payer, issuedAtIso }),
     scheme: "exact",
-    settlementRail: option.settlementRail,
+    settlementRail: option.extra.mba.settlementRail,
     railId,
     networkId: option.network,
     asset: option.asset,
@@ -174,15 +187,46 @@ export function buildMockPayment(requirement, railId, payer = "demo-agent-wallet
     sessionId: "demo-session",
     issuedAtIso,
     expiresAtIso,
-    authorization: {
-      primitive: option.settlementRail === "zeko" ? "zeko-signed-settlement-v1" : "eip3009-authorization-v1",
-      settlementRail: option.settlementRail,
-      mode: "mock-facilitator",
-      authorizationHash: sha256Hex({ option, payer, issuedAtIso })
+  };
+  const unsigned = {
+    x402Version: 2,
+    resource: requirement.resource,
+    accepted: option,
+    payload: {
+      authorization: {
+        primitive: option.extra.mba.settlementRail === "zeko"
+          ? "zeko-signed-settlement-v1"
+          : "eip3009-authorization-v1",
+        settlementRail: option.extra.mba.settlementRail,
+        mode: "mock-facilitator",
+        authorizationHash: sha256Hex({ option, payer, issuedAtIso })
+      }
+    },
+    extensions: {
+      ...requirement.extensions,
+      [MBA_X402_EXTENSION]: {
+        ...requirement.extensions[MBA_X402_EXTENSION],
+        info: {
+          ...requirement.extensions[MBA_X402_EXTENSION].info,
+          ...mba
+        }
+      }
     }
   };
   const authorizationDigest = buildAuthorizationDigest(unsigned);
-  const payload = { ...unsigned, authorizationDigest };
+  const payload = {
+    ...unsigned,
+    extensions: {
+      ...unsigned.extensions,
+      [MBA_X402_EXTENSION]: {
+        ...unsigned.extensions[MBA_X402_EXTENSION],
+        info: {
+          ...unsigned.extensions[MBA_X402_EXTENSION].info,
+          authorizationDigest
+        }
+      }
+    }
+  };
 
   return {
     payload,
@@ -191,80 +235,255 @@ export function buildMockPayment(requirement, railId, payer = "demo-agent-wallet
   };
 }
 
+function normalizePayment(payment) {
+  if (payment?.x402Version === 2 && payment.accepted && payment.payload) {
+    const mba = payment.extensions?.[MBA_X402_EXTENSION]?.info ?? {};
+    return {
+      ...mba,
+      scheme: payment.accepted.scheme,
+      settlementRail:
+        payment.accepted.extra?.mba?.settlementRail ??
+        (String(payment.accepted.network).startsWith("eip155:")
+          ? "evm"
+          : null),
+      railId:
+        payment.accepted.extra?.mba?.railId,
+      networkId: payment.accepted.network,
+      asset: payment.accepted.asset,
+      amount: payment.accepted.amount,
+      payTo: payment.accepted.payTo,
+      authorization: payment.payload.authorization,
+      settlementProof:
+        payment.settlementProof ?? mba.settlementProof,
+      facilitatorReceipt:
+        payment.facilitatorReceipt ?? mba.facilitatorReceipt,
+      x402Envelope: payment
+    };
+  }
+  return payment;
+}
+
 function verifySettlementProof(option, payment) {
   if (!isProductionProfile()) return { ok: true, mode: "demo" };
-  if (payment.authorization?.mode === "mock-facilitator" || payment.mocked) {
-    return { ok: false, reason: "Mock x402 payment authorization is disabled in production profile." };
-  }
-  const proof = payment.settlementProof ?? payment.facilitatorReceipt;
-  if (!proof) {
-    return { ok: false, reason: "Production x402 verification requires a settlement proof or facilitator receipt." };
-  }
-  if (proof.networkId && proof.networkId !== option.network) {
-    return { ok: false, reason: "Settlement proof network does not match advertised rail." };
-  }
-  if (proof.payTo && proof.payTo !== option.payTo) {
-    return { ok: false, reason: "Settlement proof payTo does not match advertised rail." };
-  }
-  if (proof.authorizationDigest && proof.authorizationDigest !== payment.authorizationDigest) {
-    return { ok: false, reason: "Settlement proof digest does not match payment authorization." };
-  }
-  if (process.env.X402_TRUST_FACILITATOR_RECEIPTS !== "true") {
-    return { ok: false, reason: "Live x402 settlement verifier is not configured." };
-  }
-  if (!process.env.X402_FACILITATOR_ISSUER) {
-    return { ok: false, reason: "X402_FACILITATOR_ISSUER is required for trusted facilitator receipts." };
-  }
+  return {
+    ok: false,
+    reason: "Production x402 requires async facilitator verification and settlement."
+  };
+}
 
-  const receiptJws = proof.jws ?? proof.receiptJws;
-  if (!receiptJws) {
-    return { ok: false, reason: "Trusted facilitator receipts must include a signed receipt JWS." };
+function facilitatorUrl(pathname) {
+  const base = process.env.X402_FACILITATOR_URL;
+  if (!base) {
+    throw new Error("X402_FACILITATOR_URL is required for live x402 settlement.");
   }
+  return `${base.replace(/\/$/, "")}/${pathname.replace(/^\//, "")}`;
+}
 
-  let receipt;
+async function callFacilitator(pathname, body) {
+  const response = await fetch(facilitatorUrl(pathname), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(process.env.X402_FACILITATOR_AUTHORIZATION
+        ? { authorization: process.env.X402_FACILITATOR_AUTHORIZATION }
+        : {})
+    },
+    body: JSON.stringify(body)
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      result.invalidReason ??
+      result.error ??
+      `x402 facilitator ${pathname} failed with ${response.status}.`
+    );
+  }
+  return result;
+}
+
+function matchingOfficialRequirement(requirement, paymentPayload) {
+  if (paymentPayload?.x402Version !== 2) return null;
+  return requirement.accepts.find(
+    (candidate) => sha256Hex(candidate) === sha256Hex(paymentPayload.accepted)
+  ) ?? null;
+}
+
+function paymentPayloadMatchesChallenge(requirement, paymentPayload) {
+  if (
+    paymentPayload.resource &&
+    sha256Hex(paymentPayload.resource) !== sha256Hex(requirement.resource)
+  ) {
+    return { ok: false, reason: "x402 v2 payment resource does not match this challenge." };
+  }
+  const requiredInfo =
+    requirement.extensions?.[MBA_X402_EXTENSION]?.info ?? {};
+  const suppliedInfo =
+    paymentPayload.extensions?.[MBA_X402_EXTENSION]?.info;
+  if (!suppliedInfo) {
+    return { ok: false, reason: "x402 v2 payment omitted the MBA challenge extension." };
+  }
+  for (const [key, value] of Object.entries(requiredInfo)) {
+    if (sha256Hex(suppliedInfo[key]) !== sha256Hex(value)) {
+      return {
+        ok: false,
+        reason: `x402 v2 payment changed MBA challenge field ${key}.`
+      };
+    }
+  }
+  return { ok: true };
+}
+
+export function buildPaymentResponse(paymentReceipt) {
+  return {
+    success: true,
+    transaction: paymentReceipt.txHash,
+    network: paymentReceipt.networkId,
+    payer: paymentReceipt.payer,
+    amount: paymentReceipt.amount,
+    extensions: {
+      [MBA_X402_EXTENSION]: {
+        info: {
+          requestId: paymentReceipt.requestId,
+          paymentId: paymentReceipt.paymentId,
+          railId: paymentReceipt.railId
+        },
+        schema: {
+          type: "object",
+          required: ["requestId", "paymentId", "railId"],
+          properties: {
+            requestId: { type: "string" },
+            paymentId: { type: "string" },
+            railId: { type: "string" }
+          }
+        }
+      }
+    }
+  };
+}
+
+export async function verifyAndSettlePayment(requirement, paymentPayload) {
+  if (!isProductionProfile()) {
+    return verifyPayment(requirement, paymentPayload);
+  }
+  if (!isSettlementEnabled()) {
+    return {
+      ok: false,
+      reason: "x402 settlement is disabled by MISSION_SETTLEMENT_PROFILE."
+    };
+  }
+  const accepted = matchingOfficialRequirement(
+    requirement,
+    paymentPayload
+  );
+  if (!accepted) {
+    return {
+      ok: false,
+      reason: "x402 v2 payment accepted requirement does not match this challenge."
+    };
+  }
+  const challengeMatch = paymentPayloadMatchesChallenge(
+    requirement,
+    paymentPayload
+  );
+  if (!challengeMatch.ok) return challengeMatch;
+  const request = {
+    x402Version: 2,
+    paymentPayload,
+    paymentRequirements: accepted
+  };
+  let verification;
+  let settlement;
   try {
-    receipt = verifyJws(receiptJws, facilitatorJwks(), { typ: "x402-facilitator-receipt+jwt" }).payload;
+    verification = await callFacilitator("verify", request);
+    if (verification.isValid !== true) {
+      return {
+        ok: false,
+        reason: verification.invalidReason ?? "x402 facilitator rejected payment."
+      };
+    }
+    settlement = await callFacilitator("settle", request);
   } catch (error) {
-    return { ok: false, reason: error instanceof Error ? error.message : "Facilitator receipt JWS is invalid." };
+    return {
+      ok: false,
+      reason: error instanceof Error ? error.message : "x402 facilitator failed."
+    };
   }
-
-  const expectedAudience = process.env.X402_FACILITATOR_AUDIENCE ?? "agent-mission-bound-auth";
-  const checks = [
-    assertEqual(receipt.iss, process.env.X402_FACILITATOR_ISSUER, "Facilitator receipt issuer mismatch."),
-    assertEqual(receipt.aud, expectedAudience, "Facilitator receipt audience mismatch."),
-    assertEqual(receipt.requestId, payment.requestId, "Facilitator receipt requestId mismatch."),
-    assertEqual(receipt.paymentId, payment.paymentId, "Facilitator receipt paymentId mismatch."),
-    assertEqual(receipt.railId, payment.railId, "Facilitator receipt railId mismatch."),
-    assertEqual(receipt.settlementRail, payment.settlementRail, "Facilitator receipt settlement rail mismatch."),
-    assertEqual(receipt.networkId, option.network, "Facilitator receipt network mismatch."),
-    assertEqual(receipt.amount, option.amount, "Facilitator receipt amount mismatch."),
-    assertEqual(receipt.assetHash, sha256Hex(option.asset), "Facilitator receipt asset mismatch."),
-    assertEqual(receipt.payer, payment.payer, "Facilitator receipt payer mismatch."),
-    assertEqual(receipt.payTo, option.payTo, "Facilitator receipt payTo mismatch."),
-    assertEqual(receipt.authorizationDigest, payment.authorizationDigest, "Facilitator receipt authorization digest mismatch.")
-  ];
-  const failed = checks.find((check) => !check.ok);
-  if (failed) return failed;
-  const clockTolerance = facilitatorClockToleranceSeconds();
-  if (!clockTolerance.ok) return clockTolerance;
-  if (typeof receipt.exp !== "number" || receipt.exp <= Math.floor(Date.now() / 1000) - clockTolerance.seconds) {
-    return { ok: false, reason: "Facilitator receipt is expired or missing exp." };
+  if (
+    settlement.success !== true ||
+    !settlement.transaction
+  ) {
+    return {
+      ok: false,
+      reason: settlement.errorReason ?? "x402 settlement failed."
+    };
   }
-  if (!receipt.txHash && !receipt.settlementId) {
-    return { ok: false, reason: "Facilitator receipt must include txHash or settlementId." };
+  if (settlement.network !== accepted.network) {
+    return { ok: false, reason: "x402 settlement network mismatch." };
   }
-
-  return { ok: true, mode: "trusted-facilitator-receipt", proof: receipt };
+  if (
+    settlement.amount !== undefined &&
+    settlement.amount !== accepted.amount
+  ) {
+    return { ok: false, reason: "x402 settlement amount mismatch." };
+  }
+  if (
+    verification.payer &&
+    settlement.payer &&
+    verification.payer !== settlement.payer
+  ) {
+    return { ok: false, reason: "x402 facilitator payer mismatch." };
+  }
+  const payer = settlement.payer ?? verification.payer;
+  if (!payer) {
+    return { ok: false, reason: "x402 facilitator did not identify payer." };
+  }
+  const paymentContextDigest = sha256Hex({
+    paymentPayload,
+    accepted,
+    payer,
+    transaction: settlement.transaction
+  });
+  return {
+    ok: true,
+    rail: findRail(accepted.extra?.mba?.railId ?? accepted.network),
+    facilitatorVerification: verification,
+    facilitatorSettlement: settlement,
+    paymentReceipt: {
+      paymentId:
+        paymentPayload.extensions?.["payment-identifier"]?.info?.id ??
+        id("x402pay", paymentPayload),
+      requestId: paymentRequirementId(requirement),
+      railId: accepted.extra?.mba?.railId ?? accepted.network,
+      networkId: accepted.network,
+      amount: accepted.amount,
+      asset: accepted.asset,
+      payer,
+      payTo: accepted.payTo,
+      authorizationDigest: paymentContextDigest,
+      txHash: settlement.transaction,
+      settledAt: new Date().toISOString(),
+      mocked: false
+    }
+  };
 }
 
 export function verifyPayment(requirement, payment) {
+  if (isProductionProfile()) {
+    return {
+      ok: false,
+      reason: isSettlementEnabled()
+        ? "Production x402 requires verifyAndSettlePayment()."
+        : "x402 settlement is disabled by MISSION_SETTLEMENT_PROFILE."
+    };
+  }
+  payment = normalizePayment(payment);
   if (!payment || typeof payment !== "object") {
     return { ok: false, reason: "Missing x402 payment payload." };
   }
 
   const option = requirement.accepts.find((item) => (
-    item.railId === payment.railId &&
-    item.settlementRail === payment.settlementRail &&
+    item.extra?.mba?.railId === payment.railId &&
+    item.extra?.mba?.settlementRail === payment.settlementRail &&
     item.network === payment.networkId &&
     item.amount === payment.amount &&
     sameAsset(item.asset, payment.asset) &&
@@ -275,7 +494,7 @@ export function verifyPayment(requirement, payment) {
     return { ok: false, reason: "Payment does not match any advertised x402 rail." };
   }
 
-  if (payment.requestId !== requirement.requestId) {
+  if (payment.requestId !== paymentRequirementId(requirement)) {
     return { ok: false, reason: "Payment requestId does not match the requirement." };
   }
 
@@ -284,7 +503,21 @@ export function verifyPayment(requirement, payment) {
     return { ok: false, reason: "Payment authorization has expired or has invalid expiry." };
   }
 
-  const expectedDigest = buildAuthorizationDigest(stripAuthorizationDigest(payment));
+  const digestBody = payment.x402Envelope
+    ? {
+        ...payment.x402Envelope,
+        extensions: {
+          ...payment.x402Envelope.extensions,
+          [MBA_X402_EXTENSION]: {
+            ...payment.x402Envelope.extensions?.[MBA_X402_EXTENSION],
+            info: stripAuthorizationDigest(
+              payment.x402Envelope.extensions?.[MBA_X402_EXTENSION]?.info ?? {}
+            )
+          }
+        }
+      }
+    : stripAuthorizationDigest(payment);
+  const expectedDigest = buildAuthorizationDigest(digestBody);
   if (expectedDigest !== payment.authorizationDigest) {
     return { ok: false, reason: "Payment authorization digest is invalid." };
   }

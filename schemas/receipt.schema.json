@@ -2,21 +2,153 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.com/schemas/receipt.schema.json",
   "type": "object",
-  "required": ["schema", "receiptId", "receiptHash", "mission", "policy", "holder", "trace", "payment", "proof", "nullifier", "settlementState"],
+  "additionalProperties": false,
+  "required": ["schema", "receiptId", "receiptHash", "mission", "capabilityArtifact", "policy", "holder", "trace", "payment", "proof", "nullifier", "settlementState"],
   "properties": {
     "schema": { "const": "mission-bound-auth-receipt-v1" },
     "receiptId": { "type": "string" },
     "receiptHash": { "type": "string" },
-    "mission": { "type": "object" },
-    "policy": { "type": "object" },
-    "holder": { "type": "object" },
-    "trace": { "type": "object" },
-    "payment": { "type": "object" },
-    "proof": { "type": "object" },
+    "mission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["missionIdHash", "capabilityHash", "authCommitment", "approvalCommitment", "issuer", "audience"],
+      "properties": {
+        "missionIdHash": { "type": "string" },
+        "capabilityHash": { "type": "string" },
+        "authCommitment": { "type": ["string", "null"] },
+        "approvalCommitment": { "type": ["string", "null"] },
+        "issuer": { "type": "string" },
+        "audience": { "type": "string" }
+      }
+    },
+    "capabilityArtifact": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "https://example.com/schemas/capability.schema.json" }
+      ]
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policyHash", "allowedDomainsHash", "allowedActionsHash", "maxSpendCommitment", "paymentRailsHash"],
+      "properties": {
+        "policyHash": { "type": "string" },
+        "allowedDomainsHash": { "type": "string" },
+        "allowedActionsHash": { "type": "string" },
+        "maxSpendCommitment": { "type": "string" },
+        "paymentRailsHash": { "type": "string" }
+      }
+    },
+    "holder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["keyThumbprint", "proofScheme"],
+      "properties": {
+        "keyThumbprint": { "type": "string" },
+        "proofScheme": { "type": "string" }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eventCount", "traceHash", "latestEventHash"],
+      "properties": {
+        "eventCount": { "type": "integer", "minimum": 0 },
+        "traceHash": { "type": "string" },
+        "latestEventHash": { "type": "string" }
+      }
+    },
+    "payment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["paymentCommitment", "rail", "amountCommitment", "paymentContextDigest"],
+      "properties": {
+        "paymentCommitment": { "type": "string" },
+        "rail": { "type": "string" },
+        "amountCommitment": { "type": "string" },
+        "paymentContextDigest": { "type": "string" }
+      }
+    },
+    "proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statementKind", "statementHash", "proofSystem", "verificationKeyHash", "artifact"],
+      "properties": {
+        "statementKind": { "type": "string" },
+        "statementHash": { "type": "string" },
+        "proofSystem": { "type": "string" },
+        "verificationKeyHash": { "type": ["string", "null"] },
+        "artifact": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "https://zeko.io/mba/schemas/mission-compliance-proof.schema.json" }
+          ]
+        }
+      }
+    },
+    "domainProof": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["evidence", "attestation"],
+          "properties": {
+            "evidence": {},
+            "attestation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["scheme", "publicKey", "signature"],
+              "properties": {
+                "scheme": { "const": "pallas-domain-proof-attestation-v1" },
+                "publicKey": { "type": "string", "pattern": "^B62" },
+                "signature": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "zekoStatement": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "https://zeko.io/mba/schemas/mission-compliance-proof.schema.json#/properties/publicStatement" }
+      ]
+    },
     "nullifier": { "type": "string" },
     "registryRoot": { "type": ["string", "null"] },
-    "settlementState": { "type": "string" },
-    "anchor": { "type": ["object", "null"] },
-    "exportedAt": { "type": "string" }
+    "settlementState": {
+      "enum": [
+        "receipt_created",
+        "proof_prepared",
+        "proof_verified",
+        "anchor_prepared",
+        "anchored",
+        "settlement_release_allowed",
+        "settled",
+        "disputed",
+        "expired",
+        "failed"
+      ]
+    },
+    "anchor": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "https://zeko.io/mba/schemas/zeko-registry-anchor.schema.json" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["registry", "payloadDigest", "txHash", "sequence", "nullifier"],
+          "properties": {
+            "registry": { "type": "string" },
+            "payloadDigest": { "type": "string" },
+            "txHash": { "type": ["string", "null"] },
+            "sequence": { "type": ["integer", "string"] },
+            "nullifier": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "exportedAt": { "type": "string", "format": "date-time" }
   }
 }

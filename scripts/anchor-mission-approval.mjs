@@ -1,113 +1,105 @@
-import "../../zeko-x402/node_modules/reflect-metadata/Reflect.js";
+import "reflect-metadata";
 
-import fs from "node:fs";
-import path from "node:path";
-import { createHash } from "node:crypto";
 import {
   Field,
   Mina,
   PrivateKey,
   PublicKey,
+  Signature,
   UInt64,
   fetchAccount
-} from "../../zeko-x402/node_modules/o1js/dist/node/index.js";
-import { PrivateComputeAccess } from "../dist-zkapp/PrivateComputeAccess.js";
+} from "o1js";
+import {
+  MissionRegistry,
+  approvalAuthorizationMessage,
+  approvalRegistryKey
+} from "../dist-zkapp/MissionRegistry.js";
+import { canonicalValueToField } from "../packages/protocol/zeko-encoding.js";
+import {
+  loadRegistryState,
+  readStdinJson,
+  requireEnv,
+  saveRegistryState,
+  setRegistryEntry,
+  zekoNetwork
+} from "./lib/registry-state.mjs";
 
-function requireEnv(name) {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is required.`);
-  return value;
-}
-
-function graphqlUrl() {
-  const endpoint = process.env.ZEKO_GRAPHQL ?? "https://testnet.zeko.io/graphql";
-  return endpoint.endsWith("/graphql") ? endpoint : `${endpoint.replace(/\/$/, "")}/graphql`;
-}
-
-function digestToField(value) {
-  return Field(BigInt(`0x${createHash("sha256").update(JSON.stringify(value)).digest("hex")}`));
-}
-
-function statePath() {
-  return process.env.PRIVATE_COMPUTE_APPROVAL_STATE_PATH ?? path.join(process.cwd(), "data", "approval-anchor-state.json");
-}
-
-function readState() {
-  const file = statePath();
-  if (!fs.existsSync(file)) {
-    return { authRoot: "0", anchors: [] };
+function inputField(value, label) {
+  if (value === undefined || value === null) {
+    throw new Error(`${label} is required.`);
   }
-  return JSON.parse(fs.readFileSync(file, "utf8"));
+  return /^[0-9]+$/.test(String(value))
+    ? Field(value)
+    : canonicalValueToField(value);
 }
 
-function writeState(state) {
-  const file = statePath();
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(state, null, 2));
-}
+const input = await readStdinJson();
+const network = zekoNetwork();
+const relayerKey = PrivateKey.fromBase58(
+  requireEnv("DEPLOYER_PRIVATE_KEY")
+);
+const authorityKey = PrivateKey.fromBase58(
+  requireEnv("MISSION_AUTHORITY_ZEKO_PRIVATE_KEY")
+);
+const registryAddress = PublicKey.fromBase58(
+  requireEnv(
+    "MISSION_REGISTRY_PUBLIC_KEY",
+    "PRIVATE_COMPUTE_ZKAPP_PUBLIC_KEY"
+  )
+);
+const capabilityCommitment = inputField(
+  input.capabilityCommitment ?? input.capabilityHash,
+  "capabilityCommitment"
+);
+const approvalCommitment = inputField(
+  input.approvalCommitment ?? input.approvalHash,
+  "approvalCommitment"
+);
+const fee = UInt64.from(process.env.TX_FEE ?? "2000000000");
 
-const stdin = await new Promise((resolve) => {
-  let body = "";
-  process.stdin.setEncoding("utf8");
-  process.stdin.on("data", (chunk) => {
-    body += chunk;
-  });
-  process.stdin.on("end", () => resolve(body));
-});
-const input = stdin.trim().length > 0 ? JSON.parse(stdin) : {};
-
-const graphql = graphqlUrl();
-const archive = process.env.ZEKO_ARCHIVE ?? "https://archive.testnet.zeko.io/graphql";
-const deployerKey = PrivateKey.fromBase58(requireEnv("DEPLOYER_PRIVATE_KEY"));
-const zkappAddress = PublicKey.fromBase58(requireEnv("PRIVATE_COMPUTE_ZKAPP_PUBLIC_KEY"));
-const txFee = UInt64.from(process.env.TX_FEE ?? "2000000000");
-
-Mina.setActiveInstance(Mina.Network({ mina: graphql, archive }));
-await PrivateComputeAccess.compile();
-
-const fetched = await fetchAccount({ publicKey: zkappAddress });
-if (fetched.error) {
-  throw new Error(`zkApp account not found: ${zkappAddress.toBase58()}`);
-}
-
-const localState = readState();
-const previousRoot = Field(BigInt(localState.authRoot ?? "0"));
-const approvalDigestInput = {
-  missionId: input.missionId,
-  missionHash: input.missionHash,
-  approvalId: input.approvalId,
-  approvalHash: input.approvalHash,
-  approver: input.approver,
-  previousRoot: previousRoot.toString(),
-  index: localState.anchors.length
-};
-const nextRoot = digestToField(approvalDigestInput);
-const zkapp = new PrivateComputeAccess(zkappAddress);
-
-const tx = await Mina.transaction({ sender: deployerKey.toPublicKey(), fee: txFee }, async () => {
-  await zkapp.registerAuthCommitment(previousRoot, nextRoot);
-});
-
+Mina.setActiveInstance(Mina.Network(network));
+await MissionRegistry.compile();
+await fetchAccount({ publicKey: registryAddress });
+const registry = new MissionRegistry(registryAddress);
+const state = loadRegistryState();
+registry.registryRoot.get().assertEquals(state.map.getRoot());
+const sequence = UInt64.from(state.stored.sequence ?? "0");
+registry.sequence.get().assertEquals(sequence);
+const key = approvalRegistryKey(capabilityCommitment);
+const witness = state.map.getWitness(key);
+const signature = Signature.create(
+  authorityKey,
+  approvalAuthorizationMessage(
+    registryAddress,
+    sequence,
+    capabilityCommitment,
+    approvalCommitment
+  )
+);
+const tx = await Mina.transaction(
+  { sender: relayerKey.toPublicKey(), fee },
+  async () => {
+    await registry.anchorApproval(
+      capabilityCommitment,
+      approvalCommitment,
+      signature,
+      witness
+    );
+  }
+);
 await tx.prove();
-tx.sign([deployerKey]);
-const sent = await tx.send();
+const result = await tx.sign([relayerKey]).send();
+await result.wait();
 
-const anchor = {
-  anchoredAt: new Date().toISOString(),
-  zkappAddress: zkappAddress.toBase58(),
-  previousRoot: previousRoot.toString(),
-  nextRoot: nextRoot.toString(),
-  hash: sent.hash ?? null,
-  status: sent.status ?? null,
-  approvalDigestInput
-};
-
-localState.authRoot = nextRoot.toString();
-localState.anchors.push(anchor);
-writeState(localState);
-
+setRegistryEntry(state, key, approvalCommitment);
+const nextSequence = BigInt(state.stored.sequence ?? "0") + 1n;
+const saved = saveRegistryState(state, nextSequence);
 console.log(JSON.stringify({
   ok: true,
-  ...anchor,
-  statePath: statePath()
+  transactionHash: result.hash,
+  capabilityCommitment: capabilityCommitment.toString(),
+  approvalCommitment: approvalCommitment.toString(),
+  registryRoot: saved.registryRoot,
+  sequence: saved.sequence,
+  registryAddress: registryAddress.toBase58()
 }, null, 2));

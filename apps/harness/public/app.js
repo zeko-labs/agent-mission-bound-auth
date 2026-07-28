@@ -34,7 +34,7 @@ function renderRails() {
     .map((rail) => `
       <button class="rail ${rail.id === state.selectedRail ? "active" : ""}" data-rail="${rail.id}">
         <span>${rail.chainName}${rail.preview ? " (preview)" : ""}<small>${rail.asset.symbol} · ${rail.network}</small></span>
-        <strong>${rail.amount}</strong>
+        <strong>${rail.displayAmount ?? rail.amount}</strong>
       </button>
     `)
     .join("");
@@ -299,7 +299,7 @@ $("computeForm").addEventListener("submit", async (event) => {
 
   const paid = await json("/api/compute", {
     method: "POST",
-    headers: { PAYMENT: payment.body.paymentHeader },
+    headers: { "PAYMENT-SIGNATURE": payment.body.paymentHeader },
     body: JSON.stringify(requestBody)
   });
 

@@ -1,24 +1,48 @@
 import { sha256Hex } from "./digest.js";
+import {
+  isDemoMode,
+  isSettlementEnabled,
+  isZekoSettlementProfile,
+  missionAuthProfile,
+  missionSettlementProfile
+} from "./runtime.js";
 
 export function buildDiscoveryDocument(baseUrl) {
+  const settlementAdvertised = isDemoMode() || isSettlementEnabled();
+  const zekoAdvertised = isDemoMode() || isZekoSettlementProfile();
   return {
     protocol: "zk-mission-auth",
-    version: "0.1",
-    name: "ZK Mission Authorization Protocol",
+    version: "1.0-draft",
+    name: "Agent Mission-Bound Auth",
     description: "Task-bound authorization, approval, payment, and receipt protocol for delegated and autonomous agents.",
     issuer: `${baseUrl}/`,
+    profiles: {
+      active: {
+        auth: missionAuthProfile(),
+        settlement: missionSettlementProfile()
+      },
+      supported: {
+        auth: ["demo", "portable", "production"],
+        settlement: ["none", "zeko"]
+      }
+    },
     endpoints: {
       agentPassport: `${baseUrl}/api/agents/passport`,
       proposeMission: `${baseUrl}/api/missions/propose`,
       approveMission: `${baseUrl}/api/missions/approve`,
+      issueCapability: `${baseUrl}/api/capabilities/issue`,
       verifyCheckpoint: `${baseUrl}/api/mission/verify-checkpoint`,
       exportBundle: `${baseUrl}/api/mission/export-bundle`,
       oauthProviders: `${baseUrl}/api/oauth/providers`,
       oauthLogin: `${baseUrl}/api/oauth/login`,
       oauthCallback: `${baseUrl}/api/oauth/callback`,
       missionAuthorityJwks: `${baseUrl}/.well-known/mission-authority-jwks.json`,
-      x402Catalog: `${baseUrl}/.well-known/x402.json`,
-      zekoContractPlan: `${baseUrl}/api/zeko/contract-plan`
+      ...(settlementAdvertised
+        ? { x402Catalog: `${baseUrl}/.well-known/x402.json` }
+        : {}),
+      ...(zekoAdvertised
+        ? { zekoContractPlan: `${baseUrl}/api/zeko/contract-plan` }
+        : {})
     },
     capabilities: {
       agentIdentity: ["agent-passport-v1", "enterprise-idp-vouching", "saml-or-oidc-upstream", "oidc-auth-code-pkce"],
@@ -38,9 +62,18 @@ export function buildDiscoveryDocument(baseUrl) {
       ],
       renewal: ["mission-bound-capability-renewal-v1"],
       verifierModes: ["compatibility", "production", "production_strict"],
-      payments: ["x402", "zeko", "ethereum", "base", "arc-preview", "tempo-preview"],
-      anchoring: ["zeko:testnet", "mission-approval-anchor-v1", "private-compute-receipt-root", "mba-registry-v1"],
-      settlementLifecycle: ["receipt_created", "proof_prepared", "proof_verified", "anchor_prepared", "anchored", "settlement_release_allowed", "settled"]
+      payments: settlementAdvertised
+        ? ["x402-v2", "zeko", "ethereum", "base", "arc-preview", "tempo-preview"]
+        : [],
+      proofSystems: zekoAdvertised
+        ? ["zeko-o1js-mission-compliance-v1"]
+        : [],
+      anchoring: zekoAdvertised
+        ? ["zeko:testnet", "mba-zeko-registry-anchor-v1", "MissionRegistry"]
+        : [],
+      settlementLifecycle: settlementAdvertised
+        ? ["receipt_created", "proof_prepared", "proof_verified", "anchor_prepared", "anchored", "settlement_release_allowed", "settled"]
+        : []
     }
   };
 }

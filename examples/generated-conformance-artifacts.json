@@ -11,7 +11,8 @@
       {
         "type": "enterprise-idp",
         "protocol": "saml-or-oidc",
-        "issuer": "zk-oauth-demo.enterprise.example"
+        "issuer": "zk-oauth-demo.enterprise.example",
+        "attestationHash": null
       },
       {
         "type": "mission-authority",
@@ -19,14 +20,19 @@
       }
     ],
     "keyBinding": {
-      "method": "http-message-signatures-compatible",
-      "jwksUri": "https://agents.local/.well-known/agent-jwks.json"
+      "method": "ed25519-v1",
+      "jwksUri": "https://agents.local/.well-known/agent-jwks.json",
+      "holderKeyCommitment": null,
+      "zekoHolderPublicKey": null,
+      "zekoHolderKeyCommitment": null
     },
-    "createdAt": "2026-05-01T16:19:07.825Z",
-    "passportId": "agent_c5bbb62f2e1850c4302a69c3",
-    "passportCommitment": "c5bbb62f2e1850c4302a69c3967ba50b77b682ec214558de04b5a80e76c4bc0b",
-    "authoritySignature": "501e0a466b871c6c508b59e8ae2b3ec5d67787348f3da45ad58825edb5be217f",
-    "authorityJws": "eyJ0eXAiOiJhZ2VudC1wYXNzcG9ydCtqd3QiLCJhbGciOiJFUzI1NiIsImtpZCI6Im1pc3Npb24tYXV0aG9yaXR5LWI1YzliZTFmZTBjZSJ9.eyJ2ZXJzaW9uIjoiYWdlbnQtcGFzc3BvcnQtdjEiLCJhZ2VudElkIjoiYWdlbnQtY29uZm9ybWFuY2UtMDAxIiwiYWdlbnRJZGVudGlmaWVyIjoiYWF1dGg6YWdlbnQtY29uZm9ybWFuY2UtMDAxQGFnZW50cy5sb2NhbCIsInJlcHJlc2VudHMiOnsidHlwZSI6Im9yZ2FuaXphdGlvbiIsImlkIjoiQ29uZm9ybWFuY2UgTGFicyJ9LCJ2b3VjaGVkQnkiOlt7InR5cGUiOiJlbnRlcnByaXNlLWlkcCIsInByb3RvY29sIjoic2FtbC1vci1vaWRjIiwiaXNzdWVyIjoiemstb2F1dGgtZGVtby5lbnRlcnByaXNlLmV4YW1wbGUifSx7InR5cGUiOiJtaXNzaW9uLWF1dGhvcml0eSIsImlzc3VlciI6ImFnZW50LW1pc3Npb24tYm91bmQtYXV0aCJ9XSwia2V5QmluZGluZyI6eyJtZXRob2QiOiJodHRwLW1lc3NhZ2Utc2lnbmF0dXJlcy1jb21wYXRpYmxlIiwiandrc1VyaSI6Imh0dHBzOi8vYWdlbnRzLmxvY2FsLy53ZWxsLWtub3duL2FnZW50LWp3a3MuanNvbiJ9LCJjcmVhdGVkQXQiOiIyMDI2LTA1LTAxVDE2OjE5OjA3LjgyNVoifQ.XEbIKMCg1vzz0D-Uz2mUzVAL2w60nqeOHO9fH7hjIyqUrPYBVU5LDX421rvErMsLXEinQYtl6HQ111NushDT8Q"
+    "authCommitment": null,
+    "identityAttestationHash": null,
+    "createdAt": "2026-07-28T16:58:42.662Z",
+    "passportId": "agent_b2042db7a9f93ce49fafdc61",
+    "passportCommitment": "b2042db7a9f93ce49fafdc6127d0683edfd4916e905fa6ba86c4b69d1f844683",
+    "authoritySignature": "bd9fe1912a30d6051fd80a5203880bd2639dc653cb9120dd50a34f0cb09c33e7",
+    "authorityJws": "eyJ0eXAiOiJhZ2VudC1wYXNzcG9ydCtqd3QiLCJhbGciOiJFUzI1NiIsImtpZCI6Im1pc3Npb24tYXV0aG9yaXR5LWI1YzliZTFmZTBjZSJ9.eyJ2ZXJzaW9uIjoiYWdlbnQtcGFzc3BvcnQtdjEiLCJhZ2VudElkIjoiYWdlbnQtY29uZm9ybWFuY2UtMDAxIiwiYWdlbnRJZGVudGlmaWVyIjoiYWF1dGg6YWdlbnQtY29uZm9ybWFuY2UtMDAxQGFnZW50cy5sb2NhbCIsInJlcHJlc2VudHMiOnsidHlwZSI6Im9yZ2FuaXphdGlvbiIsImlkIjoiQ29uZm9ybWFuY2UgTGFicyJ9LCJ2b3VjaGVkQnkiOlt7InR5cGUiOiJlbnRlcnByaXNlLWlkcCIsInByb3RvY29sIjoic2FtbC1vci1vaWRjIiwiaXNzdWVyIjoiemstb2F1dGgtZGVtby5lbnRlcnByaXNlLmV4YW1wbGUiLCJhdHRlc3RhdGlvbkhhc2giOm51bGx9LHsidHlwZSI6Im1pc3Npb24tYXV0aG9yaXR5IiwiaXNzdWVyIjoiYWdlbnQtbWlzc2lvbi1ib3VuZC1hdXRoIn1dLCJrZXlCaW5kaW5nIjp7Im1ldGhvZCI6ImVkMjU1MTktdjEiLCJqd2tzVXJpIjoiaHR0cHM6Ly9hZ2VudHMubG9jYWwvLndlbGwta25vd24vYWdlbnQtandrcy5qc29uIiwiaG9sZGVyS2V5Q29tbWl0bWVudCI6bnVsbCwiemVrb0hvbGRlclB1YmxpY0tleSI6bnVsbCwiemVrb0hvbGRlcktleUNvbW1pdG1lbnQiOm51bGx9LCJhdXRoQ29tbWl0bWVudCI6bnVsbCwiaWRlbnRpdHlBdHRlc3RhdGlvbkhhc2giOm51bGwsImNyZWF0ZWRBdCI6IjIwMjYtMDctMjhUMTY6NTg6NDIuNjYyWiJ9.fChyzbtRT8Fbc9D8CG3pQj6Q4atEDZ8viZYXngJbhHReZmFQVxGt_0XtL4opgff3CKEp0gLVjN-PfXM9wZjJnA"
   },
   "mission": {
     "version": "mission-bound-agent-auth-v1",
@@ -40,6 +46,9 @@
     "task": "Summarize private risk for conformance validation.",
     "datasetId": "clinical-failures-q1",
     "operation": "risk-summary",
+    "holderKeyCommitment": null,
+    "zekoHolderKeyCommitment": null,
+    "allowedDomains": [],
     "allowedTools": [
       "private_compute.run",
       "x402.pay",
@@ -67,20 +76,22 @@
       "before_external_side_effect",
       "after_receipt"
     ],
-    "createdAt": "2026-05-01T16:19:07.827Z",
-    "expiresAt": "2026-05-01T16:39:07.827Z",
-    "missionId": "mission_e73d5d335500da65b4e8bbc9",
-    "missionHash": "e73d5d335500da65b4e8bbc99df9aeb0add292f13b3e104157b64bb4f266a104",
+    "createdAt": "2026-07-28T16:58:42.664Z",
+    "expiresAt": "2026-07-28T17:18:42.664Z",
+    "missionId": "mission_bc13e6a79a61192dc4c6ec04",
+    "missionHash": "bc13e6a79a61192dc4c6ec04d9b6b22381458d74afd48bf5056a647725246f04",
     "status": "proposed"
   },
   "approval": {
     "version": "mission-approval-v1",
-    "missionId": "mission_e73d5d335500da65b4e8bbc9",
-    "missionHash": "e73d5d335500da65b4e8bbc99df9aeb0add292f13b3e104157b64bb4f266a104",
+    "missionId": "mission_bc13e6a79a61192dc4c6ec04",
+    "missionHash": "bc13e6a79a61192dc4c6ec04d9b6b22381458d74afd48bf5056a647725246f04",
     "approver": {
       "type": "enterprise-human-or-policy",
       "id": "policy@example.com",
-      "issuer": "conformance-idp"
+      "organization": null,
+      "issuer": "conformance-idp",
+      "identityAttestationHash": null
     },
     "approvedTools": [
       "private_compute.run",
@@ -97,10 +108,16 @@
       "zeko",
       "base"
     ],
+    "approvedDomains": [],
+    "holderKeyCommitment": null,
+    "zekoHolderKeyCommitment": null,
     "missionSnapshot": {
       "agentId": "agent-conformance-001",
+      "holderKeyCommitment": null,
+      "zekoHolderKeyCommitment": null,
       "datasetId": "clinical-failures-q1",
       "operation": "risk-summary",
+      "allowedDomains": [],
       "constraints": {
         "rawDataEgress": false,
         "aggregateOnly": true,
@@ -118,28 +135,25 @@
         "after_receipt"
       ]
     },
-    "expiresAt": "2026-05-01T16:39:07.827Z",
-    "approvedAt": "2026-05-01T16:19:07.827Z",
-    "approvalId": "approval_c904d7d515591a40bc3baf79",
-    "approvalHash": "c904d7d515591a40bc3baf79cdfec8e503a1847a4cfd8000c3e3d49f96e71833",
-    "authoritySignature": "483aabcf0a327ea6c0e1aee61f286805c9ec09568c1569248e7d365b709720cf",
-    "authorityJws": "eyJ0eXAiOiJtaXNzaW9uLWFwcHJvdmFsK2p3dCIsImFsZyI6IkVTMjU2Iiwia2lkIjoibWlzc2lvbi1hdXRob3JpdHktYjVjOWJlMWZlMGNlIn0.eyJ2ZXJzaW9uIjoibWlzc2lvbi1hcHByb3ZhbC12MSIsIm1pc3Npb25JZCI6Im1pc3Npb25fZTczZDVkMzM1NTAwZGE2NWI0ZThiYmM5IiwibWlzc2lvbkhhc2giOiJlNzNkNWQzMzU1MDBkYTY1YjRlOGJiYzk5ZGY5YWViMGFkZDI5MmYxM2IzZTEwNDE1N2I2NGJiNGYyNjZhMTA0IiwiYXBwcm92ZXIiOnsidHlwZSI6ImVudGVycHJpc2UtaHVtYW4tb3ItcG9saWN5IiwiaWQiOiJwb2xpY3lAZXhhbXBsZS5jb20iLCJpc3N1ZXIiOiJjb25mb3JtYW5jZS1pZHAifSwiYXBwcm92ZWRUb29scyI6WyJwcml2YXRlX2NvbXB1dGUucnVuIiwieDQwMi5wYXkiLCJ4NDAyLnNldHRsZSIsImVtYWlsLnNlbmQiLCJ6ZWtvLnJlY2VpcHQuYW5jaG9yIl0sImFwcHJvdmVkU2NvcGVzIjpbImNvbXB1dGU6Y2xpbmljYWwiLCJkYXRhc2V0OmNsaW5pY2FsLWZhaWx1cmVzLXExIl0sImFwcHJvdmVkUmFpbHMiOlsiemVrbyIsImJhc2UiXSwibWlzc2lvblNuYXBzaG90Ijp7ImFnZW50SWQiOiJhZ2VudC1jb25mb3JtYW5jZS0wMDEiLCJkYXRhc2V0SWQiOiJjbGluaWNhbC1mYWlsdXJlcy1xMSIsIm9wZXJhdGlvbiI6InJpc2stc3VtbWFyeSIsImNvbnN0cmFpbnRzIjp7InJhd0RhdGFFZ3Jlc3MiOmZhbHNlLCJhZ2dyZWdhdGVPbmx5Ijp0cnVlLCJtYXhTcGVuZFVzZCI6IjUuMDAiLCJhbGxvd2VkUmFpbHMiOlsiemVrbyIsImJhc2UiXSwicmVxdWlyZXNJbmRlcGVuZGVudFJlY2VpcHQiOnRydWV9LCJjaGVja3BvaW50cyI6WyJiZWZvcmVfcGF5bWVudF9vZmZlciIsImJlZm9yZV9wcml2YXRlX2NvbXB1dGUiLCJiZWZvcmVfZXh0ZXJuYWxfc2lkZV9lZmZlY3QiLCJhZnRlcl9yZWNlaXB0Il19LCJleHBpcmVzQXQiOiIyMDI2LTA1LTAxVDE2OjM5OjA3LjgyN1oiLCJhcHByb3ZlZEF0IjoiMjAyNi0wNS0wMVQxNjoxOTowNy44MjdaIn0.f93pWilVEX98lqu-SIPWBBuoUpKno3xHjF3VJ2eJlxurNz70710XerEjJ_56TWsBoyvwqvwRoinClW8f6qMQiA",
-    "zekoAnchor": {
-      "primitive": "mission-approval-commitment-v1",
-      "commitment": "e38cd235830797e033c1c4a59e7b20a61f1c6c0d18f570601f7e783480b70475",
-      "status": "ready-to-anchor"
-    }
+    "expiresAt": "2026-07-28T17:18:42.664Z",
+    "approvedAt": "2026-07-28T16:58:42.664Z",
+    "approvalId": "approval_76729526386018dae3175714",
+    "approvalHash": "76729526386018dae31757145d77803b4e43f82c9bd080d7d216c35de4629164",
+    "authoritySignature": "9b1a52f5b36e46b45cd42808e2f18a9ae054709d00d3366352f4dd64cd59e762",
+    "authorityJws": "eyJ0eXAiOiJtaXNzaW9uLWFwcHJvdmFsK2p3dCIsImFsZyI6IkVTMjU2Iiwia2lkIjoibWlzc2lvbi1hdXRob3JpdHktYjVjOWJlMWZlMGNlIn0.eyJ2ZXJzaW9uIjoibWlzc2lvbi1hcHByb3ZhbC12MSIsIm1pc3Npb25JZCI6Im1pc3Npb25fYmMxM2U2YTc5YTYxMTkyZGM0YzZlYzA0IiwibWlzc2lvbkhhc2giOiJiYzEzZTZhNzlhNjExOTJkYzRjNmVjMDRkOWI2YjIyMzgxNDU4ZDc0YWZkNDhiZjUwNTZhNjQ3NzI1MjQ2ZjA0IiwiYXBwcm92ZXIiOnsidHlwZSI6ImVudGVycHJpc2UtaHVtYW4tb3ItcG9saWN5IiwiaWQiOiJwb2xpY3lAZXhhbXBsZS5jb20iLCJvcmdhbml6YXRpb24iOm51bGwsImlzc3VlciI6ImNvbmZvcm1hbmNlLWlkcCIsImlkZW50aXR5QXR0ZXN0YXRpb25IYXNoIjpudWxsfSwiYXBwcm92ZWRUb29scyI6WyJwcml2YXRlX2NvbXB1dGUucnVuIiwieDQwMi5wYXkiLCJ4NDAyLnNldHRsZSIsImVtYWlsLnNlbmQiLCJ6ZWtvLnJlY2VpcHQuYW5jaG9yIl0sImFwcHJvdmVkU2NvcGVzIjpbImNvbXB1dGU6Y2xpbmljYWwiLCJkYXRhc2V0OmNsaW5pY2FsLWZhaWx1cmVzLXExIl0sImFwcHJvdmVkUmFpbHMiOlsiemVrbyIsImJhc2UiXSwiYXBwcm92ZWREb21haW5zIjpbXSwiaG9sZGVyS2V5Q29tbWl0bWVudCI6bnVsbCwiemVrb0hvbGRlcktleUNvbW1pdG1lbnQiOm51bGwsIm1pc3Npb25TbmFwc2hvdCI6eyJhZ2VudElkIjoiYWdlbnQtY29uZm9ybWFuY2UtMDAxIiwiaG9sZGVyS2V5Q29tbWl0bWVudCI6bnVsbCwiemVrb0hvbGRlcktleUNvbW1pdG1lbnQiOm51bGwsImRhdGFzZXRJZCI6ImNsaW5pY2FsLWZhaWx1cmVzLXExIiwib3BlcmF0aW9uIjoicmlzay1zdW1tYXJ5IiwiYWxsb3dlZERvbWFpbnMiOltdLCJjb25zdHJhaW50cyI6eyJyYXdEYXRhRWdyZXNzIjpmYWxzZSwiYWdncmVnYXRlT25seSI6dHJ1ZSwibWF4U3BlbmRVc2QiOiI1LjAwIiwiYWxsb3dlZFJhaWxzIjpbInpla28iLCJiYXNlIl0sInJlcXVpcmVzSW5kZXBlbmRlbnRSZWNlaXB0Ijp0cnVlfSwiY2hlY2twb2ludHMiOlsiYmVmb3JlX3BheW1lbnRfb2ZmZXIiLCJiZWZvcmVfcHJpdmF0ZV9jb21wdXRlIiwiYmVmb3JlX2V4dGVybmFsX3NpZGVfZWZmZWN0IiwiYWZ0ZXJfcmVjZWlwdCJdfSwiZXhwaXJlc0F0IjoiMjAyNi0wNy0yOFQxNzoxODo0Mi42NjRaIiwiYXBwcm92ZWRBdCI6IjIwMjYtMDctMjhUMTY6NTg6NDIuNjY0WiJ9.HAHkxWyjtrwvteAvdMTlVQMxV27oGo3YrRHzLM9iT8i33ThILgGzbm2-2fThSqbHX80AD_VfjWMA3Q7_FFwYeQ"
   },
   "checkpointRequest": {
     "checkpoint": "before_external_side_effect",
     "approval": {
       "version": "mission-approval-v1",
-      "missionId": "mission_e73d5d335500da65b4e8bbc9",
-      "missionHash": "e73d5d335500da65b4e8bbc99df9aeb0add292f13b3e104157b64bb4f266a104",
+      "missionId": "mission_bc13e6a79a61192dc4c6ec04",
+      "missionHash": "bc13e6a79a61192dc4c6ec04d9b6b22381458d74afd48bf5056a647725246f04",
       "approver": {
         "type": "enterprise-human-or-policy",
         "id": "policy@example.com",
-        "issuer": "conformance-idp"
+        "organization": null,
+        "issuer": "conformance-idp",
+        "identityAttestationHash": null
       },
       "approvedTools": [
         "private_compute.run",
@@ -156,10 +170,16 @@
         "zeko",
         "base"
       ],
+      "approvedDomains": [],
+      "holderKeyCommitment": null,
+      "zekoHolderKeyCommitment": null,
       "missionSnapshot": {
         "agentId": "agent-conformance-001",
+        "holderKeyCommitment": null,
+        "zekoHolderKeyCommitment": null,
         "datasetId": "clinical-failures-q1",
         "operation": "risk-summary",
+        "allowedDomains": [],
         "constraints": {
           "rawDataEgress": false,
           "aggregateOnly": true,
@@ -177,17 +197,12 @@
           "after_receipt"
         ]
       },
-      "expiresAt": "2026-05-01T16:39:07.827Z",
-      "approvedAt": "2026-05-01T16:19:07.827Z",
-      "approvalId": "approval_c904d7d515591a40bc3baf79",
-      "approvalHash": "c904d7d515591a40bc3baf79cdfec8e503a1847a4cfd8000c3e3d49f96e71833",
-      "authoritySignature": "483aabcf0a327ea6c0e1aee61f286805c9ec09568c1569248e7d365b709720cf",
-      "authorityJws": "eyJ0eXAiOiJtaXNzaW9uLWFwcHJvdmFsK2p3dCIsImFsZyI6IkVTMjU2Iiwia2lkIjoibWlzc2lvbi1hdXRob3JpdHktYjVjOWJlMWZlMGNlIn0.eyJ2ZXJzaW9uIjoibWlzc2lvbi1hcHByb3ZhbC12MSIsIm1pc3Npb25JZCI6Im1pc3Npb25fZTczZDVkMzM1NTAwZGE2NWI0ZThiYmM5IiwibWlzc2lvbkhhc2giOiJlNzNkNWQzMzU1MDBkYTY1YjRlOGJiYzk5ZGY5YWViMGFkZDI5MmYxM2IzZTEwNDE1N2I2NGJiNGYyNjZhMTA0IiwiYXBwcm92ZXIiOnsidHlwZSI6ImVudGVycHJpc2UtaHVtYW4tb3ItcG9saWN5IiwiaWQiOiJwb2xpY3lAZXhhbXBsZS5jb20iLCJpc3N1ZXIiOiJjb25mb3JtYW5jZS1pZHAifSwiYXBwcm92ZWRUb29scyI6WyJwcml2YXRlX2NvbXB1dGUucnVuIiwieDQwMi5wYXkiLCJ4NDAyLnNldHRsZSIsImVtYWlsLnNlbmQiLCJ6ZWtvLnJlY2VpcHQuYW5jaG9yIl0sImFwcHJvdmVkU2NvcGVzIjpbImNvbXB1dGU6Y2xpbmljYWwiLCJkYXRhc2V0OmNsaW5pY2FsLWZhaWx1cmVzLXExIl0sImFwcHJvdmVkUmFpbHMiOlsiemVrbyIsImJhc2UiXSwibWlzc2lvblNuYXBzaG90Ijp7ImFnZW50SWQiOiJhZ2VudC1jb25mb3JtYW5jZS0wMDEiLCJkYXRhc2V0SWQiOiJjbGluaWNhbC1mYWlsdXJlcy1xMSIsIm9wZXJhdGlvbiI6InJpc2stc3VtbWFyeSIsImNvbnN0cmFpbnRzIjp7InJhd0RhdGFFZ3Jlc3MiOmZhbHNlLCJhZ2dyZWdhdGVPbmx5Ijp0cnVlLCJtYXhTcGVuZFVzZCI6IjUuMDAiLCJhbGxvd2VkUmFpbHMiOlsiemVrbyIsImJhc2UiXSwicmVxdWlyZXNJbmRlcGVuZGVudFJlY2VpcHQiOnRydWV9LCJjaGVja3BvaW50cyI6WyJiZWZvcmVfcGF5bWVudF9vZmZlciIsImJlZm9yZV9wcml2YXRlX2NvbXB1dGUiLCJiZWZvcmVfZXh0ZXJuYWxfc2lkZV9lZmZlY3QiLCJhZnRlcl9yZWNlaXB0Il19LCJleHBpcmVzQXQiOiIyMDI2LTA1LTAxVDE2OjM5OjA3LjgyN1oiLCJhcHByb3ZlZEF0IjoiMjAyNi0wNS0wMVQxNjoxOTowNy44MjdaIn0.f93pWilVEX98lqu-SIPWBBuoUpKno3xHjF3VJ2eJlxurNz70710XerEjJ_56TWsBoyvwqvwRoinClW8f6qMQiA",
-      "zekoAnchor": {
-        "primitive": "mission-approval-commitment-v1",
-        "commitment": "e38cd235830797e033c1c4a59e7b20a61f1c6c0d18f570601f7e783480b70475",
-        "status": "ready-to-anchor"
-      }
+      "expiresAt": "2026-07-28T17:18:42.664Z",
+      "approvedAt": "2026-07-28T16:58:42.664Z",
+      "approvalId": "approval_76729526386018dae3175714",
+      "approvalHash": "76729526386018dae31757145d77803b4e43f82c9bd080d7d216c35de4629164",
+      "authoritySignature": "9b1a52f5b36e46b45cd42808e2f18a9ae054709d00d3366352f4dd64cd59e762",
+      "authorityJws": "eyJ0eXAiOiJtaXNzaW9uLWFwcHJvdmFsK2p3dCIsImFsZyI6IkVTMjU2Iiwia2lkIjoibWlzc2lvbi1hdXRob3JpdHktYjVjOWJlMWZlMGNlIn0.eyJ2ZXJzaW9uIjoibWlzc2lvbi1hcHByb3ZhbC12MSIsIm1pc3Npb25JZCI6Im1pc3Npb25fYmMxM2U2YTc5YTYxMTkyZGM0YzZlYzA0IiwibWlzc2lvbkhhc2giOiJiYzEzZTZhNzlhNjExOTJkYzRjNmVjMDRkOWI2YjIyMzgxNDU4ZDc0YWZkNDhiZjUwNTZhNjQ3NzI1MjQ2ZjA0IiwiYXBwcm92ZXIiOnsidHlwZSI6ImVudGVycHJpc2UtaHVtYW4tb3ItcG9saWN5IiwiaWQiOiJwb2xpY3lAZXhhbXBsZS5jb20iLCJvcmdhbml6YXRpb24iOm51bGwsImlzc3VlciI6ImNvbmZvcm1hbmNlLWlkcCIsImlkZW50aXR5QXR0ZXN0YXRpb25IYXNoIjpudWxsfSwiYXBwcm92ZWRUb29scyI6WyJwcml2YXRlX2NvbXB1dGUucnVuIiwieDQwMi5wYXkiLCJ4NDAyLnNldHRsZSIsImVtYWlsLnNlbmQiLCJ6ZWtvLnJlY2VpcHQuYW5jaG9yIl0sImFwcHJvdmVkU2NvcGVzIjpbImNvbXB1dGU6Y2xpbmljYWwiLCJkYXRhc2V0OmNsaW5pY2FsLWZhaWx1cmVzLXExIl0sImFwcHJvdmVkUmFpbHMiOlsiemVrbyIsImJhc2UiXSwiYXBwcm92ZWREb21haW5zIjpbXSwiaG9sZGVyS2V5Q29tbWl0bWVudCI6bnVsbCwiemVrb0hvbGRlcktleUNvbW1pdG1lbnQiOm51bGwsIm1pc3Npb25TbmFwc2hvdCI6eyJhZ2VudElkIjoiYWdlbnQtY29uZm9ybWFuY2UtMDAxIiwiaG9sZGVyS2V5Q29tbWl0bWVudCI6bnVsbCwiemVrb0hvbGRlcktleUNvbW1pdG1lbnQiOm51bGwsImRhdGFzZXRJZCI6ImNsaW5pY2FsLWZhaWx1cmVzLXExIiwib3BlcmF0aW9uIjoicmlzay1zdW1tYXJ5IiwiYWxsb3dlZERvbWFpbnMiOltdLCJjb25zdHJhaW50cyI6eyJyYXdEYXRhRWdyZXNzIjpmYWxzZSwiYWdncmVnYXRlT25seSI6dHJ1ZSwibWF4U3BlbmRVc2QiOiI1LjAwIiwiYWxsb3dlZFJhaWxzIjpbInpla28iLCJiYXNlIl0sInJlcXVpcmVzSW5kZXBlbmRlbnRSZWNlaXB0Ijp0cnVlfSwiY2hlY2twb2ludHMiOlsiYmVmb3JlX3BheW1lbnRfb2ZmZXIiLCJiZWZvcmVfcHJpdmF0ZV9jb21wdXRlIiwiYmVmb3JlX2V4dGVybmFsX3NpZGVfZWZmZWN0IiwiYWZ0ZXJfcmVjZWlwdCJdfSwiZXhwaXJlc0F0IjoiMjAyNi0wNy0yOFQxNzoxODo0Mi42NjRaIiwiYXBwcm92ZWRBdCI6IjIwMjYtMDctMjhUMTY6NTg6NDIuNjY0WiJ9.HAHkxWyjtrwvteAvdMTlVQMxV27oGo3YrRHzLM9iT8i33ThILgGzbm2-2fThSqbHX80AD_VfjWMA3Q7_FFwYeQ"
     },
     "context": {
       "agentId": "agent-conformance-001",
@@ -198,7 +213,7 @@
   },
   "bundle": {
     "version": "zk-mission-bundle-v1",
-    "exportedAt": "2026-05-01T16:19:07.827Z",
+    "exportedAt": "2026-07-28T16:58:42.664Z",
     "agentPassport": {
       "version": "agent-passport-v1",
       "agentId": "agent-conformance-001",
@@ -211,7 +226,8 @@
         {
           "type": "enterprise-idp",
           "protocol": "saml-or-oidc",
-          "issuer": "zk-oauth-demo.enterprise.example"
+          "issuer": "zk-oauth-demo.enterprise.example",
+          "attestationHash": null
         },
         {
           "type": "mission-authority",
@@ -219,14 +235,19 @@
         }
       ],
       "keyBinding": {
-        "method": "http-message-signatures-compatible",
-        "jwksUri": "https://agents.local/.well-known/agent-jwks.json"
+        "method": "ed25519-v1",
+        "jwksUri": "https://agents.local/.well-known/agent-jwks.json",
+        "holderKeyCommitment": null,
+        "zekoHolderPublicKey": null,
+        "zekoHolderKeyCommitment": null
       },
-      "createdAt": "2026-05-01T16:19:07.825Z",
-      "passportId": "agent_c5bbb62f2e1850c4302a69c3",
-      "passportCommitment": "c5bbb62f2e1850c4302a69c3967ba50b77b682ec214558de04b5a80e76c4bc0b",
-      "authoritySignature": "501e0a466b871c6c508b59e8ae2b3ec5d67787348f3da45ad58825edb5be217f",
-      "authorityJws": "eyJ0eXAiOiJhZ2VudC1wYXNzcG9ydCtqd3QiLCJhbGciOiJFUzI1NiIsImtpZCI6Im1pc3Npb24tYXV0aG9yaXR5LWI1YzliZTFmZTBjZSJ9.eyJ2ZXJzaW9uIjoiYWdlbnQtcGFzc3BvcnQtdjEiLCJhZ2VudElkIjoiYWdlbnQtY29uZm9ybWFuY2UtMDAxIiwiYWdlbnRJZGVudGlmaWVyIjoiYWF1dGg6YWdlbnQtY29uZm9ybWFuY2UtMDAxQGFnZW50cy5sb2NhbCIsInJlcHJlc2VudHMiOnsidHlwZSI6Im9yZ2FuaXphdGlvbiIsImlkIjoiQ29uZm9ybWFuY2UgTGFicyJ9LCJ2b3VjaGVkQnkiOlt7InR5cGUiOiJlbnRlcnByaXNlLWlkcCIsInByb3RvY29sIjoic2FtbC1vci1vaWRjIiwiaXNzdWVyIjoiemstb2F1dGgtZGVtby5lbnRlcnByaXNlLmV4YW1wbGUifSx7InR5cGUiOiJtaXNzaW9uLWF1dGhvcml0eSIsImlzc3VlciI6ImFnZW50LW1pc3Npb24tYm91bmQtYXV0aCJ9XSwia2V5QmluZGluZyI6eyJtZXRob2QiOiJodHRwLW1lc3NhZ2Utc2lnbmF0dXJlcy1jb21wYXRpYmxlIiwiandrc1VyaSI6Imh0dHBzOi8vYWdlbnRzLmxvY2FsLy53ZWxsLWtub3duL2FnZW50LWp3a3MuanNvbiJ9LCJjcmVhdGVkQXQiOiIyMDI2LTA1LTAxVDE2OjE5OjA3LjgyNVoifQ.XEbIKMCg1vzz0D-Uz2mUzVAL2w60nqeOHO9fH7hjIyqUrPYBVU5LDX421rvErMsLXEinQYtl6HQ111NushDT8Q"
+      "authCommitment": null,
+      "identityAttestationHash": null,
+      "createdAt": "2026-07-28T16:58:42.662Z",
+      "passportId": "agent_b2042db7a9f93ce49fafdc61",
+      "passportCommitment": "b2042db7a9f93ce49fafdc6127d0683edfd4916e905fa6ba86c4b69d1f844683",
+      "authoritySignature": "bd9fe1912a30d6051fd80a5203880bd2639dc653cb9120dd50a34f0cb09c33e7",
+      "authorityJws": "eyJ0eXAiOiJhZ2VudC1wYXNzcG9ydCtqd3QiLCJhbGciOiJFUzI1NiIsImtpZCI6Im1pc3Npb24tYXV0aG9yaXR5LWI1YzliZTFmZTBjZSJ9.eyJ2ZXJzaW9uIjoiYWdlbnQtcGFzc3BvcnQtdjEiLCJhZ2VudElkIjoiYWdlbnQtY29uZm9ybWFuY2UtMDAxIiwiYWdlbnRJZGVudGlmaWVyIjoiYWF1dGg6YWdlbnQtY29uZm9ybWFuY2UtMDAxQGFnZW50cy5sb2NhbCIsInJlcHJlc2VudHMiOnsidHlwZSI6Im9yZ2FuaXphdGlvbiIsImlkIjoiQ29uZm9ybWFuY2UgTGFicyJ9LCJ2b3VjaGVkQnkiOlt7InR5cGUiOiJlbnRlcnByaXNlLWlkcCIsInByb3RvY29sIjoic2FtbC1vci1vaWRjIiwiaXNzdWVyIjoiemstb2F1dGgtZGVtby5lbnRlcnByaXNlLmV4YW1wbGUiLCJhdHRlc3RhdGlvbkhhc2giOm51bGx9LHsidHlwZSI6Im1pc3Npb24tYXV0aG9yaXR5IiwiaXNzdWVyIjoiYWdlbnQtbWlzc2lvbi1ib3VuZC1hdXRoIn1dLCJrZXlCaW5kaW5nIjp7Im1ldGhvZCI6ImVkMjU1MTktdjEiLCJqd2tzVXJpIjoiaHR0cHM6Ly9hZ2VudHMubG9jYWwvLndlbGwta25vd24vYWdlbnQtandrcy5qc29uIiwiaG9sZGVyS2V5Q29tbWl0bWVudCI6bnVsbCwiemVrb0hvbGRlclB1YmxpY0tleSI6bnVsbCwiemVrb0hvbGRlcktleUNvbW1pdG1lbnQiOm51bGx9LCJhdXRoQ29tbWl0bWVudCI6bnVsbCwiaWRlbnRpdHlBdHRlc3RhdGlvbkhhc2giOm51bGwsImNyZWF0ZWRBdCI6IjIwMjYtMDctMjhUMTY6NTg6NDIuNjYyWiJ9.fChyzbtRT8Fbc9D8CG3pQj6Q4atEDZ8viZYXngJbhHReZmFQVxGt_0XtL4opgff3CKEp0gLVjN-PfXM9wZjJnA"
     },
     "mission": {
       "version": "mission-bound-agent-auth-v1",
@@ -240,6 +261,9 @@
       "task": "Summarize private risk for conformance validation.",
       "datasetId": "clinical-failures-q1",
       "operation": "risk-summary",
+      "holderKeyCommitment": null,
+      "zekoHolderKeyCommitment": null,
+      "allowedDomains": [],
       "allowedTools": [
         "private_compute.run",
         "x402.pay",
@@ -267,20 +291,22 @@
         "before_external_side_effect",
         "after_receipt"
       ],
-      "createdAt": "2026-05-01T16:19:07.827Z",
-      "expiresAt": "2026-05-01T16:39:07.827Z",
-      "missionId": "mission_e73d5d335500da65b4e8bbc9",
-      "missionHash": "e73d5d335500da65b4e8bbc99df9aeb0add292f13b3e104157b64bb4f266a104",
+      "createdAt": "2026-07-28T16:58:42.664Z",
+      "expiresAt": "2026-07-28T17:18:42.664Z",
+      "missionId": "mission_bc13e6a79a61192dc4c6ec04",
+      "missionHash": "bc13e6a79a61192dc4c6ec04d9b6b22381458d74afd48bf5056a647725246f04",
       "status": "proposed"
     },
     "approval": {
       "version": "mission-approval-v1",
-      "missionId": "mission_e73d5d335500da65b4e8bbc9",
-      "missionHash": "e73d5d335500da65b4e8bbc99df9aeb0add292f13b3e104157b64bb4f266a104",
+      "missionId": "mission_bc13e6a79a61192dc4c6ec04",
+      "missionHash": "bc13e6a79a61192dc4c6ec04d9b6b22381458d74afd48bf5056a647725246f04",
       "approver": {
         "type": "enterprise-human-or-policy",
         "id": "policy@example.com",
-        "issuer": "conformance-idp"
+        "organization": null,
+        "issuer": "conformance-idp",
+        "identityAttestationHash": null
       },
       "approvedTools": [
         "private_compute.run",
@@ -297,10 +323,16 @@
         "zeko",
         "base"
       ],
+      "approvedDomains": [],
+      "holderKeyCommitment": null,
+      "zekoHolderKeyCommitment": null,
       "missionSnapshot": {
         "agentId": "agent-conformance-001",
+        "holderKeyCommitment": null,
+        "zekoHolderKeyCommitment": null,
         "datasetId": "clinical-failures-q1",
         "operation": "risk-summary",
+        "allowedDomains": [],
         "constraints": {
           "rawDataEgress": false,
           "aggregateOnly": true,
@@ -318,17 +350,12 @@
           "after_receipt"
         ]
       },
-      "expiresAt": "2026-05-01T16:39:07.827Z",
-      "approvedAt": "2026-05-01T16:19:07.827Z",
-      "approvalId": "approval_c904d7d515591a40bc3baf79",
-      "approvalHash": "c904d7d515591a40bc3baf79cdfec8e503a1847a4cfd8000c3e3d49f96e71833",
-      "authoritySignature": "483aabcf0a327ea6c0e1aee61f286805c9ec09568c1569248e7d365b709720cf",
-      "authorityJws": "eyJ0eXAiOiJtaXNzaW9uLWFwcHJvdmFsK2p3dCIsImFsZyI6IkVTMjU2Iiwia2lkIjoibWlzc2lvbi1hdXRob3JpdHktYjVjOWJlMWZlMGNlIn0.eyJ2ZXJzaW9uIjoibWlzc2lvbi1hcHByb3ZhbC12MSIsIm1pc3Npb25JZCI6Im1pc3Npb25fZTczZDVkMzM1NTAwZGE2NWI0ZThiYmM5IiwibWlzc2lvbkhhc2giOiJlNzNkNWQzMzU1MDBkYTY1YjRlOGJiYzk5ZGY5YWViMGFkZDI5MmYxM2IzZTEwNDE1N2I2NGJiNGYyNjZhMTA0IiwiYXBwcm92ZXIiOnsidHlwZSI6ImVudGVycHJpc2UtaHVtYW4tb3ItcG9saWN5IiwiaWQiOiJwb2xpY3lAZXhhbXBsZS5jb20iLCJpc3N1ZXIiOiJjb25mb3JtYW5jZS1pZHAifSwiYXBwcm92ZWRUb29scyI6WyJwcml2YXRlX2NvbXB1dGUucnVuIiwieDQwMi5wYXkiLCJ4NDAyLnNldHRsZSIsImVtYWlsLnNlbmQiLCJ6ZWtvLnJlY2VpcHQuYW5jaG9yIl0sImFwcHJvdmVkU2NvcGVzIjpbImNvbXB1dGU6Y2xpbmljYWwiLCJkYXRhc2V0OmNsaW5pY2FsLWZhaWx1cmVzLXExIl0sImFwcHJvdmVkUmFpbHMiOlsiemVrbyIsImJhc2UiXSwibWlzc2lvblNuYXBzaG90Ijp7ImFnZW50SWQiOiJhZ2VudC1jb25mb3JtYW5jZS0wMDEiLCJkYXRhc2V0SWQiOiJjbGluaWNhbC1mYWlsdXJlcy1xMSIsIm9wZXJhdGlvbiI6InJpc2stc3VtbWFyeSIsImNvbnN0cmFpbnRzIjp7InJhd0RhdGFFZ3Jlc3MiOmZhbHNlLCJhZ2dyZWdhdGVPbmx5Ijp0cnVlLCJtYXhTcGVuZFVzZCI6IjUuMDAiLCJhbGxvd2VkUmFpbHMiOlsiemVrbyIsImJhc2UiXSwicmVxdWlyZXNJbmRlcGVuZGVudFJlY2VpcHQiOnRydWV9LCJjaGVja3BvaW50cyI6WyJiZWZvcmVfcGF5bWVudF9vZmZlciIsImJlZm9yZV9wcml2YXRlX2NvbXB1dGUiLCJiZWZvcmVfZXh0ZXJuYWxfc2lkZV9lZmZlY3QiLCJhZnRlcl9yZWNlaXB0Il19LCJleHBpcmVzQXQiOiIyMDI2LTA1LTAxVDE2OjM5OjA3LjgyN1oiLCJhcHByb3ZlZEF0IjoiMjAyNi0wNS0wMVQxNjoxOTowNy44MjdaIn0.f93pWilVEX98lqu-SIPWBBuoUpKno3xHjF3VJ2eJlxurNz70710XerEjJ_56TWsBoyvwqvwRoinClW8f6qMQiA",
-      "zekoAnchor": {
-        "primitive": "mission-approval-commitment-v1",
-        "commitment": "e38cd235830797e033c1c4a59e7b20a61f1c6c0d18f570601f7e783480b70475",
-        "status": "ready-to-anchor"
-      }
+      "expiresAt": "2026-07-28T17:18:42.664Z",
+      "approvedAt": "2026-07-28T16:58:42.664Z",
+      "approvalId": "approval_76729526386018dae3175714",
+      "approvalHash": "76729526386018dae31757145d77803b4e43f82c9bd080d7d216c35de4629164",
+      "authoritySignature": "9b1a52f5b36e46b45cd42808e2f18a9ae054709d00d3366352f4dd64cd59e762",
+      "authorityJws": "eyJ0eXAiOiJtaXNzaW9uLWFwcHJvdmFsK2p3dCIsImFsZyI6IkVTMjU2Iiwia2lkIjoibWlzc2lvbi1hdXRob3JpdHktYjVjOWJlMWZlMGNlIn0.eyJ2ZXJzaW9uIjoibWlzc2lvbi1hcHByb3ZhbC12MSIsIm1pc3Npb25JZCI6Im1pc3Npb25fYmMxM2U2YTc5YTYxMTkyZGM0YzZlYzA0IiwibWlzc2lvbkhhc2giOiJiYzEzZTZhNzlhNjExOTJkYzRjNmVjMDRkOWI2YjIyMzgxNDU4ZDc0YWZkNDhiZjUwNTZhNjQ3NzI1MjQ2ZjA0IiwiYXBwcm92ZXIiOnsidHlwZSI6ImVudGVycHJpc2UtaHVtYW4tb3ItcG9saWN5IiwiaWQiOiJwb2xpY3lAZXhhbXBsZS5jb20iLCJvcmdhbml6YXRpb24iOm51bGwsImlzc3VlciI6ImNvbmZvcm1hbmNlLWlkcCIsImlkZW50aXR5QXR0ZXN0YXRpb25IYXNoIjpudWxsfSwiYXBwcm92ZWRUb29scyI6WyJwcml2YXRlX2NvbXB1dGUucnVuIiwieDQwMi5wYXkiLCJ4NDAyLnNldHRsZSIsImVtYWlsLnNlbmQiLCJ6ZWtvLnJlY2VpcHQuYW5jaG9yIl0sImFwcHJvdmVkU2NvcGVzIjpbImNvbXB1dGU6Y2xpbmljYWwiLCJkYXRhc2V0OmNsaW5pY2FsLWZhaWx1cmVzLXExIl0sImFwcHJvdmVkUmFpbHMiOlsiemVrbyIsImJhc2UiXSwiYXBwcm92ZWREb21haW5zIjpbXSwiaG9sZGVyS2V5Q29tbWl0bWVudCI6bnVsbCwiemVrb0hvbGRlcktleUNvbW1pdG1lbnQiOm51bGwsIm1pc3Npb25TbmFwc2hvdCI6eyJhZ2VudElkIjoiYWdlbnQtY29uZm9ybWFuY2UtMDAxIiwiaG9sZGVyS2V5Q29tbWl0bWVudCI6bnVsbCwiemVrb0hvbGRlcktleUNvbW1pdG1lbnQiOm51bGwsImRhdGFzZXRJZCI6ImNsaW5pY2FsLWZhaWx1cmVzLXExIiwib3BlcmF0aW9uIjoicmlzay1zdW1tYXJ5IiwiYWxsb3dlZERvbWFpbnMiOltdLCJjb25zdHJhaW50cyI6eyJyYXdEYXRhRWdyZXNzIjpmYWxzZSwiYWdncmVnYXRlT25seSI6dHJ1ZSwibWF4U3BlbmRVc2QiOiI1LjAwIiwiYWxsb3dlZFJhaWxzIjpbInpla28iLCJiYXNlIl0sInJlcXVpcmVzSW5kZXBlbmRlbnRSZWNlaXB0Ijp0cnVlfSwiY2hlY2twb2ludHMiOlsiYmVmb3JlX3BheW1lbnRfb2ZmZXIiLCJiZWZvcmVfcHJpdmF0ZV9jb21wdXRlIiwiYmVmb3JlX2V4dGVybmFsX3NpZGVfZWZmZWN0IiwiYWZ0ZXJfcmVjZWlwdCJdfSwiZXhwaXJlc0F0IjoiMjAyNi0wNy0yOFQxNzoxODo0Mi42NjRaIiwiYXBwcm92ZWRBdCI6IjIwMjYtMDctMjhUMTY6NTg6NDIuNjY0WiJ9.HAHkxWyjtrwvteAvdMTlVQMxV27oGo3YrRHzLM9iT8i33ThILgGzbm2-2fThSqbHX80AD_VfjWMA3Q7_FFwYeQ"
     },
     "auth": {
       "authCommitment": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -337,8 +364,8 @@
     "payment": null,
     "receipt": null,
     "zeko": {
-      "zkappAddress": "B62qpBXMbrKVJwcS9wQN7SpFb6jkrXn2xrntCoM6D461qL2sYZarPHi"
+      "zkappAddress": "zeko-registry-test-fixture"
     },
-    "bundleHash": "fa7121d7da93c249592189c056ad98cdf84de93444dfd45ba6f5db9c74e9e504"
+    "bundleHash": "2b91ac0d938e3f22d346807cc29f2df75c847dcae77094efe3d789541f516cc4"
   }
 }

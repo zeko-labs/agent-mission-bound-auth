@@ -1,5 +1,8 @@
 import { randomBytes, createHash } from "node:crypto";
+import { sha256Hex } from "./digest.js";
 import { buildAuthCommitment, fetchJwks, normalizeOAuthClaims, verifyJwtWithJwks } from "./oauth-production.js";
+import { buildEnterpriseIdentityAttestation } from "./identity-attestations.js";
+import { isProductionProfile } from "./runtime.js";
 
 const AUTH0_DEFAULT_SCOPE = "openid profile email compute:clinical dataset:clinical-failures-q1 rail:zeko rail:base budget:small";
 const OKTA_DEFAULT_SCOPE = "openid profile email";
@@ -90,8 +93,23 @@ export async function discoverOidcProvider(config) {
   const res = await fetch(config.discoveryUrl);
   if (!res.ok) throw new Error(`${config.provider} discovery failed with ${res.status}.`);
   const discovery = await res.json();
+  const discoveredIssuer = normalizeIssuer(discovery.issuer);
+  if (discoveredIssuer !== normalizeIssuer(config.issuer)) {
+    throw new Error(`${config.provider} discovery issuer does not match configured issuer.`);
+  }
+  for (const [label, value] of [
+    ["authorization_endpoint", discovery.authorization_endpoint],
+    ["token_endpoint", discovery.token_endpoint],
+    ["jwks_uri", discovery.jwks_uri]
+  ]) {
+    if (!value) throw new Error(`${config.provider} discovery is missing ${label}.`);
+    const endpoint = new URL(value);
+    if (endpoint.protocol !== "https:" && isProductionProfile()) {
+      throw new Error(`${config.provider} ${label} must use HTTPS in production.`);
+    }
+  }
   return {
-    issuer: discovery.issuer ?? config.issuer,
+    issuer: discoveredIssuer,
     authorizationEndpoint: discovery.authorization_endpoint,
     tokenEndpoint: discovery.token_endpoint,
     jwksUri: discovery.jwks_uri,
@@ -122,6 +140,7 @@ export async function buildOidcAuthorization(config, sessions) {
     provider: config.provider,
     issuer: discovery.issuer,
     audience: config.clientId,
+    resourceAudience: config.audience,
     clientId: config.clientId,
     clientSecret: config.clientSecret,
     redirectUri: config.redirectUri,
@@ -149,9 +168,16 @@ function pruneOidcSessions(sessions) {
 }
 
 export async function completeOidcAuthorization({ code, state }, sessions) {
+  if (!code || !state) throw new Error("OIDC callback requires code and state.");
   const session = sessions.get(state);
   if (!session) throw new Error("OIDC state was not found or already used.");
   sessions.delete(state);
+  if (
+    !Number.isFinite(session.createdAt) ||
+    Date.now() - session.createdAt > SESSION_TTL_MS
+  ) {
+    throw new Error("OIDC state expired.");
+  }
 
   const form = new URLSearchParams({
     grant_type: "authorization_code",
@@ -187,18 +213,64 @@ export async function completeOidcAuthorization({ code, state }, sessions) {
     throw new Error("OIDC nonce mismatch.");
   }
 
-  const normalizedClaims = normalizeOAuthClaims(claims, session.provider);
+  let authorizationClaims = claims;
+  if (session.resourceAudience) {
+    const accessTokenIsJwt =
+      typeof tokenBody.access_token === "string" &&
+      tokenBody.access_token.split(".").length === 3;
+    if (!accessTokenIsJwt && isProductionProfile()) {
+      throw new Error(
+        "OIDC resource audience requires a verifiable JWT access token in production."
+      );
+    }
+    if (accessTokenIsJwt) {
+      const accessClaims = await verifyJwtWithJwks(
+        tokenBody.access_token,
+        {
+          issuer: session.issuer,
+          audience: session.resourceAudience,
+          jwks
+        }
+      );
+      authorizationClaims = {
+        ...claims,
+        scope:
+          accessClaims.scope ??
+          accessClaims.scp ??
+          claims.scope,
+        scp: accessClaims.scp ?? claims.scp,
+        permissions:
+          accessClaims.permissions ?? claims.permissions
+      };
+    }
+  }
+  const normalizedClaims = normalizeOAuthClaims(
+    authorizationClaims,
+    session.provider,
+    {
+      tokenHash: sha256Hex({
+        idToken: token,
+        accessToken: tokenBody.access_token ?? null
+      })
+    }
+  );
   const commitment = buildAuthCommitment(
     normalizedClaims,
     randomToken(16),
     process.env.ZK_OAUTH_ISSUER_SECRET
   );
+  const identityAttestation = buildEnterpriseIdentityAttestation({
+    normalizedClaims,
+    authCommitment: commitment.authCommitment,
+    scopeCommitment: commitment.scopeCommitment
+  });
   return {
     provider: session.provider,
     tokenType: tokenBody.token_type ?? "Bearer",
     normalizedClaims,
     authCommitment: commitment.authCommitment,
     scopeCommitment: commitment.scopeCommitment,
-    issuerProofDigest: commitment.issuerProofDigest
+    issuerProofDigest: commitment.issuerProofDigest,
+    identityAttestation
   };
 }

@@ -70,11 +70,8 @@ try {
     issuer: "demo-enterprise-sso"
   });
   const anchor = await runAnchor({
-    missionId: mission.body.mission.missionId,
-    missionHash: mission.body.mission.missionHash,
-    approvalId: approval.body.approval.approvalId,
-    approvalHash: approval.body.approval.approvalHash,
-    approver: approval.body.approval.approver
+    capabilityCommitment: mission.body.mission.missionHash,
+    approvalCommitment: approval.body.approval.approvalHash
   });
   const checkpoint = await post(base, "/api/mission/verify-checkpoint", {
     checkpoint: "before_private_compute",
@@ -83,10 +80,10 @@ try {
       zekoAnchor: {
         ...approval.body.approval.zekoAnchor,
         status: "anchored",
-        txHash: anchor.hash,
-        previousRoot: anchor.previousRoot,
-        nextRoot: anchor.nextRoot,
-        zkappAddress: anchor.zkappAddress
+        txHash: anchor.transactionHash,
+        registryRoot: anchor.registryRoot,
+        sequence: anchor.sequence,
+        zkappAddress: anchor.registryAddress
       }
     },
     context: {

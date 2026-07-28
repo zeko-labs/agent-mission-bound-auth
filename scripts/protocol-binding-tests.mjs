@@ -139,6 +139,9 @@ function baseArtifacts() {
 }
 
 const { missionIdHash, policy, capability, event, receipt, anchor } = baseArtifacts();
+const nestedReceiptInjection = clone(receipt);
+nestedReceiptInjection.payment.injected = true;
+assert.equal(verifyReceipt(nestedReceiptInjection).valid, false);
 
 const differentMission = clone(event);
 differentMission.missionIdHash = sha256Hex("mission-binding-002");
@@ -184,7 +187,7 @@ invalidExpiryCapability.nullifier = sha256Hex({
   capabilityId: invalidExpiryCapability.capabilityId,
   capabilityHash: invalidExpiryCapability.capabilityHash,
   missionIdHash: invalidExpiryCapability.missionIdHash,
-  nullifierSeed: invalidExpiryCapability.nullifierSeed,
+  nullifierCommitment: invalidExpiryCapability.nullifierCommitment,
   settlementReleaseCondition: invalidExpiryCapability.settlementReleaseCondition
 });
 assert.equal(verifyCapability(invalidExpiryCapability).valid, false);
@@ -232,13 +235,33 @@ const ed25519Event = buildBoundaryEvent({
   }
 });
 assert.equal(verifyBoundaryEvent(ed25519Event, { requireStrongHolderProof: true }).valid, true);
+const extendedExpiryEvent = clone(ed25519Event);
+extendedExpiryEvent.expiresAt = new Date(Date.now() + 3_600_000).toISOString();
+const extendedExpiryReplay = recomputeEventEnvelope(extendedExpiryEvent);
+assert.equal(
+  verifyBoundaryEvent(extendedExpiryReplay, {
+    requireStrongHolderProof: true
+  }).valid,
+  false
+);
+assert.match(
+  verifyBoundaryEvent(extendedExpiryReplay, {
+    requireStrongHolderProof: true
+  }).reason,
+  /holder proof/
+);
 const wrongCurveEvent = clone(ed25519Event);
 wrongCurveEvent.holderProof.publicJwk = { ...wrongCurveEvent.holderProof.publicJwk, crv: "X25519" };
 wrongCurveEvent.holderProof.keyThumbprint = sha256Hex(wrongCurveEvent.holderProof.publicJwk);
 wrongCurveEvent.holderKeyCommitment = wrongCurveEvent.holderProof.keyThumbprint;
 const wrongCurveReplay = recomputeEventEnvelope(wrongCurveEvent);
 assert.equal(verifyBoundaryEvent(wrongCurveReplay, { requireStrongHolderProof: true }).valid, false);
-assert.match(verifyBoundaryEvent(wrongCurveReplay, { requireStrongHolderProof: true }).reason, /Ed25519 public JWK/);
+assert.match(
+  verifyBoundaryEvent(wrongCurveReplay, {
+    requireStrongHolderProof: true
+  }).reason,
+  /holder proof|action context/
+);
 assert.throws(
   () => buildBoundaryEvent({
     missionIdHash,
@@ -279,9 +302,15 @@ if (previousProductionEnv.DEMO_MODE === undefined) {
 }
 
 const secondReceipt = clone(receipt);
-assert.equal(verifySettlementState(receipt, { spentNullifiers: [] }).decision, "release_allowed");
+assert.equal(verifySettlementState(receipt, {
+  spentNullifiers: [],
+  allowUnverifiedDemoEvidence: true
+}).decision, "release_allowed");
 assert.equal(verifySettlementState(secondReceipt, { spentNullifiers: [receipt.nullifier] }).decision, "duplicate_payment");
-assert.equal(verifySettlementState(receipt, { expiresAt: "not-a-date" }).decision, "expired_authorization");
+assert.equal(verifySettlementState(receipt, {
+  expiresAt: "not-a-date",
+  allowUnverifiedDemoEvidence: true
+}).decision, "expired_authorization");
 
 const changedPolicy = buildMissionPolicy({
   ...policy,
@@ -336,23 +365,28 @@ assert.match(verifyReceipt(unanchoredFinalReceipt).reason, /anchor/);
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mba-cli-"));
 const receiptPath = path.join(tempDir, "receipt.json");
 const anchorPath = path.join(tempDir, "anchor.json");
-const settlementPath = path.join(tempDir, "settlement.json");
 fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
 fs.writeFileSync(anchorPath, JSON.stringify(anchor, null, 2));
-fs.writeFileSync(settlementPath, JSON.stringify({ spentNullifiers: [], allowedRails: ["zeko"] }, null, 2));
 
 const mbaCli = new URL("./mba.mjs", import.meta.url).pathname;
 const cliReceipt = JSON.parse(execFileSync(process.execPath, [mbaCli, "verify", "receipt", receiptPath], { encoding: "utf8" }));
 assert.equal(cliReceipt.valid, true);
 const cliAnchor = JSON.parse(execFileSync(process.execPath, [mbaCli, "verify", "anchor", receiptPath, anchorPath], { encoding: "utf8" }));
 assert.equal(cliAnchor.valid, true);
-const cliSettlement = JSON.parse(execFileSync(process.execPath, [mbaCli, "verify", "settlement", receiptPath, "--registry", settlementPath], { encoding: "utf8" }));
-assert.equal(cliSettlement.settlement, "release_allowed");
+assert.throws(
+  () => execFileSync(
+    process.execPath,
+    [mbaCli, "verify", "settlement", receiptPath, anchorPath],
+    { encoding: "utf8" }
+  ),
+  /status 1|Command failed/
+);
 
 console.log(JSON.stringify({
   ok: true,
   checks: [
     "mission-binding",
+    "nested-receipt-schema-rejection",
     "action-binding",
     "domain-binding",
     "expiry",
@@ -362,11 +396,11 @@ console.log(JSON.stringify({
     "anchor-statement",
     "production-anchor-required",
     "ed25519-holder-proof",
+    "holder-proof-expiry-binding",
     "rejects-wrong-ed25519-curve",
     "rejects-unsupported-holder-proof",
     "production-rejects-digest-holder-proof"
   ],
   receiptPath,
-  anchorPath,
-  settlementPath
+  anchorPath
 }, null, 2));

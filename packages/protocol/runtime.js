@@ -1,10 +1,90 @@
 import { timingSafeEqual } from "node:crypto";
 
-export function isProductionProfile(env = process.env) {
-  return env.MISSION_AUTH_PROFILE === "production" ||
+export const MISSION_AUTH_PROFILES = Object.freeze([
+  "demo",
+  "portable",
+  "production"
+]);
+
+export const MISSION_SETTLEMENT_PROFILES = Object.freeze([
+  "none",
+  "zeko"
+]);
+
+function booleanEnv(value) {
+  if (value === undefined) return null;
+  const normalized = String(value).toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  throw new Error("DEMO_MODE must be a boolean value.");
+}
+
+export function missionAuthProfile(env = process.env) {
+  const configured = env.MISSION_AUTH_PROFILE;
+  const demoMode = booleanEnv(env.DEMO_MODE);
+  let profile;
+
+  if (configured === "production_strict") {
+    profile = "production";
+  } else if (configured) {
+    profile = configured;
+  } else if (env.NODE_ENV === "production" || demoMode === false) {
+    profile = "production";
+  } else {
+    profile = "demo";
+  }
+
+  if (!MISSION_AUTH_PROFILES.includes(profile)) {
+    throw new Error(
+      `MISSION_AUTH_PROFILE must be one of ${MISSION_AUTH_PROFILES.join(", ")}.`
+    );
+  }
+  if (demoMode === true && profile !== "demo") {
+    throw new Error("DEMO_MODE=true conflicts with a secure MISSION_AUTH_PROFILE.");
+  }
+  if (demoMode === false && profile === "demo") {
+    throw new Error("DEMO_MODE=false conflicts with MISSION_AUTH_PROFILE=demo.");
+  }
+  if (env.NODE_ENV === "production" && profile === "demo") {
+    throw new Error("MISSION_AUTH_PROFILE=demo is not allowed with NODE_ENV=production.");
+  }
+  return profile;
+}
+
+export function missionSettlementProfile(env = process.env) {
+  const configured = env.MISSION_SETTLEMENT_PROFILE;
+  if (configured) {
+    if (!MISSION_SETTLEMENT_PROFILES.includes(configured)) {
+      throw new Error(
+        `MISSION_SETTLEMENT_PROFILE must be one of ${MISSION_SETTLEMENT_PROFILES.join(", ")}.`
+      );
+    }
+    return configured;
+  }
+
+  // Preserve the original production behavior while allowing portable to
+  // select production-grade auth without carrying a settlement dependency.
+  if (
+    env.MISSION_AUTH_PROFILE === "production" ||
     env.MISSION_AUTH_PROFILE === "production_strict" ||
-    env.NODE_ENV === "production" ||
-    env.DEMO_MODE === "false";
+    (!env.MISSION_AUTH_PROFILE &&
+      (env.NODE_ENV === "production" || booleanEnv(env.DEMO_MODE) === false))
+  ) {
+    return "zeko";
+  }
+  return "none";
+}
+
+export function isProductionProfile(env = process.env) {
+  return missionAuthProfile(env) !== "demo";
+}
+
+export function isZekoSettlementProfile(env = process.env) {
+  return missionSettlementProfile(env) === "zeko";
+}
+
+export function isSettlementEnabled(env = process.env) {
+  return missionSettlementProfile(env) !== "none";
 }
 
 export function verifierMode(options = {}, env = process.env) {
@@ -19,10 +99,7 @@ export function isProductionStrictVerifier(options = {}, env = process.env) {
 }
 
 export function isDemoMode(env = process.env) {
-  if (env.DEMO_MODE !== undefined) {
-    return !["0", "false", "no", "off"].includes(String(env.DEMO_MODE).toLowerCase());
-  }
-  return !isProductionProfile(env);
+  return missionAuthProfile(env) === "demo";
 }
 
 export function requireConfiguredValue(name, localFallback, purpose) {
@@ -53,5 +130,5 @@ export function requireAuthorityBearer(req, envName = "MISSION_APPROVAL_BEARER_T
   if (suppliedBuffer.length !== expectedBuffer.length || !timingSafeEqual(suppliedBuffer, expectedBuffer)) {
     return { ok: false, status: 401, reason: "approval authority token is missing or invalid." };
   }
-  return { ok: true, mode: "production" };
+  return { ok: true, mode: missionAuthProfile() };
 }

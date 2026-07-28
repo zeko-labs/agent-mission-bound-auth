@@ -4,29 +4,41 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { generateKeyPairSync, sign as cryptoSign } from "node:crypto";
+import { PrivateKey } from "o1js";
 import { buildAgentPassport, proposeMission, approveMission, enforceCheckpoint } from "../packages/protocol/missions.js";
 import { buildAuthCommitment, normalizeOAuthClaims, verifyJwtWithJwks } from "../packages/protocol/oauth-production.js";
 import { verifyPayment } from "../packages/protocol/x402.js";
 import { sha256Hex } from "../packages/protocol/digest.js";
+import { buildEnterpriseIdentityAttestation } from "../packages/protocol/identity-attestations.js";
+import {
+  buildMissionCapability,
+  renewMissionCapability,
+  verifyCapabilityRenewal
+} from "../packages/protocol/capabilities.js";
+import {
+  prepareMissionComplianceBinding,
+  zekoHolderKeyCommitment
+} from "../packages/protocol/zeko-inputs.js";
+import { completeOidcAuthorization } from "../packages/protocol/oidc.js";
 
 function encodeJson(value) {
   return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
 }
 
-function signRsJwt(payload, privateKey, kid = "jwt-test") {
-  const header = { typ: "JWT", alg: "RS256", kid };
+function signRsJwt(
+  payload,
+  privateKey,
+  kid = "jwt-test",
+  headerOverrides = {}
+) {
+  const header = {
+    typ: "JWT",
+    alg: "RS256",
+    kid,
+    ...headerOverrides
+  };
   const signingInput = `${encodeJson(header)}.${encodeJson(payload)}`;
   const signature = cryptoSign("RSA-SHA256", Buffer.from(signingInput), privateKey).toString("base64url");
-  return `${signingInput}.${signature}`;
-}
-
-function signEsJws(payload, privateKey, kid = "facilitator-test") {
-  const header = { typ: "x402-facilitator-receipt+jwt", alg: "ES256", kid };
-  const signingInput = `${encodeJson(header)}.${encodeJson(payload)}`;
-  const signature = cryptoSign("sha256", Buffer.from(signingInput), {
-    key: privateKey,
-    dsaEncoding: "ieee-p1363"
-  }).toString("base64url");
   return `${signingInput}.${signature}`;
 }
 
@@ -130,6 +142,12 @@ try {
         headers: { "content-type": "application/json" }
       });
     }
+    if (String(url) === "https://issuer.example/token") {
+      return Response.json({
+        token_type: "Bearer",
+        id_token: jwt
+      });
+    }
     return previousFetch(url);
   };
   const { createServer } = await import("../apps/harness/server.js");
@@ -168,6 +186,79 @@ try {
     }),
     /exp is required/
   );
+  await assert.rejects(
+    () => verifyJwtWithJwks(jwt, {
+      jwks: { keys: [publicJwk] }
+    }),
+    /pinned issuer and audience/
+  );
+  const criticalHeaderJwt = signRsJwt({
+    iss: "https://issuer.example/",
+    sub: "subject-123",
+    aud: "client-123",
+    exp: now + 600,
+    iat: now
+  }, jwtKeys.privateKey, "jwt-test", { crit: "b64" });
+  await assert.rejects(
+    () => verifyJwtWithJwks(criticalHeaderJwt, {
+      issuer: "https://issuer.example/",
+      audience: "client-123",
+      jwks: { keys: [publicJwk] }
+    }),
+    /critical headers/
+  );
+  const multiAudienceJwt = signRsJwt({
+    iss: "https://issuer.example/",
+    sub: "subject-123",
+    aud: ["client-123", "another-client"],
+    scope: "compute:clinical",
+    exp: now + 600,
+    iat: now
+  }, jwtKeys.privateKey);
+  await assert.rejects(
+    () => verifyJwtWithJwks(multiAudienceJwt, {
+      issuer: "https://issuer.example/",
+      audience: "client-123",
+      jwks: { keys: [publicJwk] }
+    }),
+    /azp must match/
+  );
+  await assert.rejects(
+    () => completeOidcAuthorization(
+      { code: "stale-code", state: "stale-state" },
+      new Map([[
+        "stale-state",
+        {
+          createdAt: Date.now() - (11 * 60 * 1000),
+          tokenEndpoint: "https://issuer.example/token"
+        }
+      ]])
+    ),
+    /state expired/
+  );
+  await assert.rejects(
+    () => completeOidcAuthorization(
+      { code: "resource-code", state: "resource-state" },
+      new Map([[
+        "resource-state",
+        {
+          provider: "auth0",
+          issuer: "https://issuer.example/",
+          audience: "client-123",
+          resourceAudience: "private-api",
+          clientId: "client-123",
+          redirectUri:
+            "http://127.0.0.1:8787/api/oauth/callback",
+          codeVerifier: "verifier",
+          nonce: "nonce-123",
+          tokenEndpoint: "https://issuer.example/token",
+          jwksUri: process.env.OIDC_JWKS_URL,
+          createdAt: Date.now()
+        }
+      ]])
+    ),
+    /verifiable JWT access token/
+  );
 
   process.env.AGENT_MAPPINGS_JSON = JSON.stringify([
     {
@@ -184,12 +275,62 @@ try {
     /No production agent mapping/
   );
 
-  const passport = buildAgentPassport({ agentId: normalized.agentId, organization: "Mapped Org" });
+  const commitment = buildAuthCommitment(
+    normalized,
+    "production-hardening-salt",
+    process.env.ZK_OAUTH_ISSUER_SECRET
+  );
+  const identityAttestation = buildEnterpriseIdentityAttestation({
+    normalizedClaims: normalized,
+    authCommitment: commitment.authCommitment,
+    scopeCommitment: commitment.scopeCommitment
+  });
+  assert.throws(
+    () => buildEnterpriseIdentityAttestation({
+      normalizedClaims: {
+        ...normalized,
+        expiresAt: "not-a-date"
+      },
+      authCommitment: commitment.authCommitment,
+      scopeCommitment: commitment.scopeCommitment
+    }),
+    /expiry must be valid/
+  );
+  const approverAttestation = buildEnterpriseIdentityAttestation({
+    normalizedClaims: {
+      ...normalized,
+      agentId: "policy-approver-1",
+      tokenHash: sha256Hex({
+        tokenHash: normalized.tokenHash,
+        role: "approver"
+      })
+    },
+    authCommitment: sha256Hex({
+      authCommitment: commitment.authCommitment,
+      role: "approver"
+    }),
+    scopeCommitment: commitment.scopeCommitment
+  });
+  const zekoHolderPrivateKey = PrivateKey.random();
+  const zekoHolderPublicKey =
+    zekoHolderPrivateKey.toPublicKey().toBase58();
+  const zekoHolderCommitment =
+    zekoHolderKeyCommitment(zekoHolderPublicKey);
+  const holderKeyCommitment = sha256Hex("production-holder-key");
+  const passport = buildAgentPassport({
+    agentId: normalized.agentId,
+    organization: "Mapped Org",
+    identityAttestation,
+    holderKeyCommitment,
+    zekoHolderPublicKey,
+    zekoHolderKeyCommitment: zekoHolderCommitment
+  });
   const mission = proposeMission({
     agentId: passport.agentId,
     datasetId: "clinical-failures-q1",
     operation: "risk-summary",
     task: "production hardening check",
+    allowedDomains: ["compute.example"],
     allowedTools: ["private_compute.run", "x402.settle"],
     allowedScopes: ["compute:clinical", "dataset:clinical-failures-q1"],
     allowedRails: ["zeko"],
@@ -197,9 +338,119 @@ try {
   });
   const approval = approveMission({
     missionId: mission.missionId,
-    approverId: "policy@example.com",
-    issuer: "policy-engine"
+    approverAttestation
   });
+  assert.equal(
+    approval.zekoHolderKeyCommitment,
+    passport.keyBinding.zekoHolderKeyCommitment
+  );
+
+  const beneficiary = PrivateKey.random().toPublicKey();
+  const domainVerifierPrivateKey = PrivateKey.random();
+  process.env.DOMAIN_VERIFIER_PALLAS_PUBLIC_KEYS_JSON =
+    JSON.stringify([
+      domainVerifierPrivateKey.toPublicKey().toBase58()
+    ]);
+  const zekoPrepared = await prepareMissionComplianceBinding({
+    holderPrivateKey: zekoHolderPrivateKey,
+    domainVerifierPublicKey:
+      domainVerifierPrivateKey.toPublicKey(),
+    beneficiary,
+    missionIdHash: sha256Hex(mission.missionId),
+    authCommitment: identityAttestation.authCommitment,
+    principalHash: sha256Hex(identityAttestation.source),
+    agentId: passport.agentId,
+    datasetId: mission.datasetId,
+    dataScopes: approval.approvedScopes,
+    allowedActions: approval.approvedTools,
+    allowedDomains: approval.approvedDomains,
+    validUntilSlot: 50_000,
+    maxSpendUsd: mission.constraints.maxSpendUsd,
+    payoutMina: "0.015",
+    protocolFeeMina: "0.001"
+  });
+  const capabilityInput = {
+    issuer: "https://mba.example/",
+    audience: "mission-verifier",
+    principalHash: sha256Hex(identityAttestation.source),
+    authCommitment: identityAttestation.authCommitment,
+    identityAttestationHash: identityAttestation.attestationHash,
+    agentId: passport.agentId,
+    holderKeyCommitment,
+    missionId: mission.missionId,
+    missionIdHash: sha256Hex(mission.missionId),
+    approvalHash: approval.approvalHash,
+    policyHash: sha256Hex("production-policy"),
+    allowedDomains: approval.approvedDomains,
+    allowedActions: approval.approvedTools,
+    dataScopes: approval.approvedScopes,
+    paymentRails: approval.approvedRails,
+    maxSpendUsd: mission.constraints.maxSpendUsd,
+    expiresAt: approval.expiresAt,
+    nullifierCommitment: sha256Hex("production-nullifier-1")
+  };
+  assert.throws(
+    () => buildMissionCapability(capabilityInput),
+    /valid Zeko binding/
+  );
+  const trustedDomainVerifiers =
+    process.env.DOMAIN_VERIFIER_PALLAS_PUBLIC_KEYS_JSON;
+  process.env.DOMAIN_VERIFIER_PALLAS_PUBLIC_KEYS_JSON = "[]";
+  assert.throws(
+    () => buildMissionCapability({
+      ...capabilityInput,
+      zekoBinding: zekoPrepared.binding
+    }),
+    /not in the production trust set/
+  );
+  process.env.DOMAIN_VERIFIER_PALLAS_PUBLIC_KEYS_JSON =
+    trustedDomainVerifiers;
+  const capability = buildMissionCapability({
+    ...capabilityInput,
+    zekoBinding: zekoPrepared.binding
+  });
+  assert.equal(
+    capability.zekoBinding.holderKeyCommitment,
+    passport.keyBinding.zekoHolderKeyCommitment
+  );
+  assert.throws(
+    () => renewMissionCapability(capability, {
+      expiresAt: capability.expiresAt,
+      nullifierCommitment: sha256Hex("production-nullifier-2")
+    }),
+    /valid Zeko binding/
+  );
+  const renewalPrepared = await prepareMissionComplianceBinding({
+    holderPrivateKey: zekoHolderPrivateKey,
+    domainVerifierPublicKey:
+      domainVerifierPrivateKey.toPublicKey(),
+    beneficiary,
+    missionIdHash: capability.missionIdHash,
+    authCommitment: capability.authCommitment,
+    principalHash: capability.principalHash,
+    agentId: capability.agentId,
+    datasetId: mission.datasetId,
+    dataScopes: capability.dataScopes,
+    allowedActions: capability.allowedActions,
+    allowedDomains: capability.allowedDomains,
+    validUntilSlot: 50_000,
+    maxSpendUsd: capability.maxSpendUsd,
+    payoutMina: "0.015",
+    protocolFeeMina: "0.001"
+  });
+  const renewed = renewMissionCapability(capability, {
+    expiresAt: capability.expiresAt,
+    nullifierCommitment: sha256Hex("production-nullifier-2"),
+    zekoBinding: renewalPrepared.binding
+  });
+  assert.equal(
+    verifyCapabilityRenewal(
+      renewed.renewal,
+      capability,
+      renewed.capability
+    ).valid,
+    true
+  );
 
   const missingExecution = enforceCheckpoint({
     checkpoint: "before_private_compute",
@@ -231,7 +482,10 @@ try {
     }
   });
   assert.equal(hmacDowngrade.ok, false);
-  assert.match(hmacDowngrade.reason, /JWS is required/);
+  assert.match(
+    hmacDowngrade.reason,
+    /JWS is required|schema validation/
+  );
 
   const first = enforceCheckpoint({
     checkpoint: "before_private_compute",
@@ -296,116 +550,28 @@ try {
   };
   mockPayment.authorizationDigest = sha256Hex(mockPayment);
   const paymentCheck = verifyPayment({
-    requestId: "req-1",
+    extensions: {
+      "agent-mission-bound-auth": {
+        info: { requestId: "req-1" }
+      }
+    },
     accepts: [{
-      railId: "zeko",
-      settlementRail: "zeko",
       network: "zeko:testnet",
       amount: "0.1",
       asset: { symbol: "tMINA", decimals: 9, standard: "native" },
-      payTo: "B62test"
+      payTo: "B62test",
+      extra: {
+        mba: {
+          railId: "zeko",
+          settlementRail: "zeko"
+        }
+      }
     }]
   }, mockPayment);
   assert.equal(paymentCheck.ok, false);
-  assert.match(paymentCheck.reason, /Mock x402/);
+  assert.match(paymentCheck.reason, /verifyAndSettlePayment/);
 
-  const facilitatorKeys = generateKeyPairSync("ec", { namedCurve: "P-256" });
-  const facilitatorPublicJwk = {
-    ...facilitatorKeys.publicKey.export({ format: "jwk" }),
-    kid: "facilitator-test",
-    alg: "ES256",
-    use: "sig"
-  };
-  process.env.X402_TRUST_FACILITATOR_RECEIPTS = "true";
-  process.env.X402_FACILITATOR_ISSUER = "https://facilitator.example/";
-  process.env.X402_FACILITATOR_JWKS_JSON = JSON.stringify({ keys: [facilitatorPublicJwk] });
-  const option = {
-    railId: "zeko",
-    settlementRail: "zeko",
-    network: "zeko:testnet",
-    amount: "0.1",
-    asset: { symbol: "tMINA", decimals: 9, standard: "native" },
-    payTo: "B62test"
-  };
-  const signedPayment = {
-    protocol: "x402",
-    version: "2",
-    requestId: "req-2",
-    paymentId: "pay-2",
-    railId: option.railId,
-    settlementRail: option.settlementRail,
-    networkId: option.network,
-    amount: option.amount,
-    asset: option.asset,
-    payer: "B62payer",
-    payTo: option.payTo,
-    expiresAtIso: new Date(Date.now() + 60_000).toISOString(),
-    authorization: { mode: "facilitator" }
-  };
-  signedPayment.authorizationDigest = sha256Hex(signedPayment);
-  const receiptPayload = {
-    iss: process.env.X402_FACILITATOR_ISSUER,
-    aud: "agent-mission-bound-auth",
-    requestId: signedPayment.requestId,
-    paymentId: signedPayment.paymentId,
-    railId: signedPayment.railId,
-    settlementRail: signedPayment.settlementRail,
-    networkId: option.network,
-    amount: option.amount,
-    assetHash: sha256Hex(option.asset),
-    payer: signedPayment.payer,
-    payTo: option.payTo,
-    authorizationDigest: signedPayment.authorizationDigest,
-    txHash: "0xabc123",
-    exp: now + 600
-  };
-  const signedReceipt = signEsJws(receiptPayload, facilitatorKeys.privateKey);
-  const signedPaymentCheck = verifyPayment({
-    requestId: signedPayment.requestId,
-    accepts: [option]
-  }, {
-    ...signedPayment,
-    facilitatorReceipt: {
-      networkId: option.network,
-      payTo: option.payTo,
-      authorizationDigest: signedPayment.authorizationDigest,
-      jws: signedReceipt
-    }
-  });
-  assert.equal(signedPaymentCheck.ok, true);
-
-  process.env.X402_FACILITATOR_CLOCK_TOLERANCE_SECONDS = "not-a-number";
-  const invalidToleranceCheck = verifyPayment({
-    requestId: signedPayment.requestId,
-    accepts: [option]
-  }, {
-    ...signedPayment,
-    facilitatorReceipt: {
-      networkId: option.network,
-      payTo: option.payTo,
-      authorizationDigest: signedPayment.authorizationDigest,
-      jws: signedReceipt
-    }
-  });
-  assert.equal(invalidToleranceCheck.ok, false);
-  assert.match(invalidToleranceCheck.reason, /CLOCK_TOLERANCE/);
-  delete process.env.X402_FACILITATOR_CLOCK_TOLERANCE_SECONDS;
-
-  const unsignedReceiptCheck = verifyPayment({
-    requestId: signedPayment.requestId,
-    accepts: [option]
-  }, {
-    ...signedPayment,
-    facilitatorReceipt: {
-      networkId: option.network,
-      payTo: option.payTo,
-      authorizationDigest: signedPayment.authorizationDigest
-    }
-  });
-  assert.equal(unsignedReceiptCheck.ok, false);
-  assert.match(unsignedReceiptCheck.reason, /signed receipt JWS/);
-
-  console.log(JSON.stringify({ ok: true, checks: ["strict-jwt", "provider-pinned-jwks", "agent-mapping", "production-keys", "replay-budget", "settlement-proof"] }, null, 2));
+  console.log(JSON.stringify({ ok: true, checks: ["strict-jwt", "critical-header-rejection", "multi-audience-azp", "stale-oidc-state", "resource-audience-access-token", "provider-pinned-jwks", "agent-mapping", "dual-holder-key-binding", "trusted-domain-verifier", "zeko-capability-binding", "holder-nullifier-renewal", "production-keys", "replay-budget", "online-settlement-required"] }, null, 2));
 } finally {
   process.env = previousEnv;
   globalThis.fetch = previousFetch;

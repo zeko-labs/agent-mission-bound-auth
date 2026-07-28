@@ -3,45 +3,68 @@ import { RAILS } from "./rails.js";
 
 export function buildZekoContractPlan() {
   const zekoRail = RAILS.zeko;
-  return {
+  const plan = {
+    version: "mba-mission-registry-plan-v1",
     contract: {
-      name: "PrivateComputeAccess",
-      source: "zkapp/PrivateComputeAccess.ts",
+      name: "MissionRegistry",
+      source: "zkapp/MissionRegistry.ts",
+      complianceProgram: "zkapp/MissionComplianceProgram.ts",
       networkId: "zeko:testnet",
       graphql: zekoRail.extensions?.zeko?.graphql,
       archive: zekoRail.extensions?.zeko?.archive
     },
     state: {
-      datasetRoot: "Field",
-      authRoot: "Field",
-      receiptRoot: "Field",
-      beneficiary: "PublicKey"
+      authorityKey: "PublicKey",
+      protocolFeeRecipient: "PublicKey",
+      registryRoot: "Field",
+      sequence: "UInt64"
     },
+    registryNamespaces: [
+      "approval",
+      "revocation",
+      "nullifier",
+      "receipt",
+      "escrow"
+    ],
     methods: [
-      "configureBeneficiary(PublicKey)",
-      "registerDatasetCommitment(previousRoot, nextRoot)",
-      "registerAuthCommitment(previousRoot, nextRoot)",
-      "recordPrivateComputeReceipt(previousRoot, nextRoot, receipt)"
+      "configure(MissionRegistryConfig)",
+      "anchorApproval(capabilityCommitment, approvalCommitment, authoritySignature, witness)",
+      "revokeCapability(capabilityCommitment, authoritySignature, witness)",
+      "fundMission(escrow, witness)",
+      "settleMission(complianceProof, escrow, approvalWitness, revocationWitness, nullifierWitness, receiptWitness, escrowWitness)",
+      "refundMission(escrow, witness)"
+    ],
+    settlementGuarantees: [
+      "mission-compliance proof verifies",
+      "approval is present",
+      "capability is not revoked",
+      "nullifier is unused",
+      "receipt is inserted once",
+      "escrow terms match proof statement",
+      "beneficiary payout and protocol fee split are atomic"
     ],
     x402Linkage: {
+      x402Version: 2,
+      requestHeader: "PAYMENT-SIGNATURE",
       settlementModel: zekoRail.settlementModel,
-      payTo: zekoRail.payTo,
-      kernelPath: zekoRail.extensions?.zeko?.kernelPath,
-      receiptFields: [
+      beneficiaryAddress:
+        zekoRail.extensions?.zeko?.beneficiaryAddress,
+      publicStatementFields: [
         "authCommitment",
+        "capabilityCommitment",
+        "policyCommitment",
+        "approvalCommitment",
         "datasetCommitment",
-        "policyHash",
-        "outputHash",
+        "domainProofCommitment",
+        "outputCommitment",
         "paymentContextDigest",
-        "amountNanomina",
-        "payer",
-        "beneficiary"
+        "receiptCommitment",
+        "nullifier",
+        "beneficiary",
+        "payoutNanomina",
+        "protocolFeeNanomina"
       ]
-    },
-    planDigest: sha256Hex({
-      contract: "PrivateComputeAccess",
-      rail: zekoRail,
-      version: "private-compute-zkapp-plan-v1"
-    })
+    }
   };
+  return { ...plan, planDigest: sha256Hex(plan) };
 }

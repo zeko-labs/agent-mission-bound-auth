@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.com/schemas/boundary-event.schema.json",
   "type": "object",
+  "additionalProperties": false,
   "required": ["version", "missionIdHash", "capabilityHash", "policyHash", "eventType", "action", "actionHash", "targetDomainHash", "resourceHash", "paymentContextDigest", "previousEventHash", "observedAt", "holderProof", "eventId", "eventHash"],
   "properties": {
     "version": { "const": "mission-bound-boundary-event-v1" },
@@ -22,6 +23,7 @@
     "holderKeyCommitment": { "type": "string" },
     "holderProof": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["scheme", "keyThumbprint", "messageHash", "signature"],
       "properties": {
         "scheme": {

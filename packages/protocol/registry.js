@@ -1,5 +1,10 @@
 import { id, sha256Hex } from "./digest.js";
-import { RECEIPT_SETTLEMENT_STATES, verifyReceipt } from "./receipts.js";
+import {
+  RECEIPT_SETTLEMENT_STATES,
+  verifyProductionReceiptCryptographically,
+  verifyReceipt
+} from "./receipts.js";
+import { verifyZekoRegistryAnchorOnChain } from "./zeko-chain.js";
 
 export const SETTLEMENT_LIFECYCLE_TRANSITIONS = Object.freeze({
   receipt_created: ["proof_prepared", "failed", "expired"],
@@ -178,6 +183,42 @@ export function verifySettlementState(receipt, settlement = {}) {
   if (!SETTLEMENT_RELEASE_STATES.has(receipt.settlementState)) {
     return { valid: false, decision: "not_ready", reason: "Receipt settlementState does not allow release." };
   }
+  if (safeSettlement.allowUnverifiedDemoEvidence !== true) {
+    if (safeSettlement.proofVerification?.valid !== true) {
+      return { valid: false, decision: "not_ready", reason: "Cryptographic mission compliance proof verification is required before release." };
+    }
+    if (safeSettlement.chainVerification?.valid !== true) {
+      return { valid: false, decision: "not_ready", reason: "Zeko registry verification is required before release." };
+    }
+    if (
+      !safeSettlement.proofVerification.proofArtifactHash ||
+      receipt.proof?.artifact?.artifactHash !==
+        safeSettlement.proofVerification.proofArtifactHash
+    ) {
+      return { valid: false, decision: "release_denied", reason: "Settlement proof verification is bound to a different artifact." };
+    }
+    if (
+      !safeSettlement.chainVerification.registryRoot ||
+      receipt.anchor?.registryRoot !==
+        safeSettlement.chainVerification.registryRoot
+    ) {
+      return { valid: false, decision: "release_denied", reason: "Settlement chain verification is bound to a different registry root." };
+    }
+    if (
+      !safeSettlement.chainVerification.transactionHash ||
+      receipt.anchor?.transactionHash !==
+        safeSettlement.chainVerification.transactionHash
+    ) {
+      return { valid: false, decision: "release_denied", reason: "Settlement chain verification is bound to a different transaction." };
+    }
+    if (
+      !safeSettlement.chainVerification.registryAddress ||
+      receipt.anchor?.registryAddress !==
+        safeSettlement.chainVerification.registryAddress
+    ) {
+      return { valid: false, decision: "release_denied", reason: "Settlement chain verification is bound to a different registry." };
+    }
+  }
   if (safeSettlement.allowedRails && !safeSettlement.allowedRails.includes(receipt.payment.rail)) {
     return { valid: false, decision: "policy_violation", reason: "Receipt payment rail is not allowed." };
   }
@@ -192,6 +233,60 @@ export function verifySettlementState(receipt, settlement = {}) {
     decision: "release_allowed",
     nullifier: receipt.nullifier,
     receiptId: receipt.receiptId
+  };
+}
+
+export async function verifySettlementOnZeko(
+  receipt,
+  anchor,
+  options = {}
+) {
+  const proofVerification =
+    await verifyProductionReceiptCryptographically(receipt, {
+      verificationKey: options.verificationKey,
+      circuitDigest: options.circuitDigest,
+      authorityJwks: options.authorityJwks,
+      domainProofVerifier: options.domainProofVerifier,
+      domainProofContext: options.domainProofContext
+    });
+  if (!proofVerification.valid) {
+    return {
+      valid: false,
+      decision: "release_denied",
+      reason: proofVerification.reason,
+      proofVerification
+    };
+  }
+  const chainVerification = await verifyZekoRegistryAnchorOnChain(
+    receipt,
+    anchor,
+    {
+      verificationKey: options.verificationKey,
+      circuitDigest: options.circuitDigest,
+      graphql: options.graphql,
+      expectedRegistryAddress: options.expectedRegistryAddress,
+      historicalAnchorVerifier: options.historicalAnchorVerifier
+    }
+  );
+  if (!chainVerification.valid) {
+    return {
+      valid: false,
+      decision: "release_denied",
+      reason: chainVerification.reason,
+      proofVerification,
+      chainVerification
+    };
+  }
+  return {
+    ...verifySettlementState(receipt, {
+      spentNullifiers: options.spentNullifiers,
+      allowedRails: options.allowedRails,
+      expiresAt: options.expiresAt,
+      proofVerification,
+      chainVerification
+    }),
+    proofVerification,
+    chainVerification
   };
 }
 

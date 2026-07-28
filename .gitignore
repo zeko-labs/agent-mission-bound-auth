@@ -2,5 +2,7 @@
 .env.local
 .env.production
 data/keys/
+data/mission-registry-state.json
+build/
 dist-zkapp/
 node_modules/

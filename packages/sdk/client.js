@@ -84,7 +84,7 @@ export class ZkMissionAuthClient {
   requestCompute(input, paymentHeader) {
     return this.json("/api/compute", {
       method: "POST",
-      headers: paymentHeader ? { PAYMENT: paymentHeader } : {},
+      headers: paymentHeader ? { "PAYMENT-SIGNATURE": paymentHeader } : {},
       body: JSON.stringify(input)
     });
   }
