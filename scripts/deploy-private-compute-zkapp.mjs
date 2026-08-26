@@ -1,5 +1,7 @@
 import "reflect-metadata";
 
+import fs from "node:fs";
+import path from "node:path";
 import {
   AccountUpdate,
   Mina,
@@ -14,11 +16,13 @@ import {
 } from "../dist-zkapp/MissionRegistry.js";
 import {
   requireEnv,
+  zekoConfig,
   zekoNetwork
 } from "./lib/registry-state.mjs";
 
 const network = zekoNetwork();
-const fee = UInt64.from(process.env.TX_FEE ?? "2000000000");
+const networkConfig = zekoConfig();
+const fee = UInt64.from(networkConfig.transactionFee);
 const deployerKey = PrivateKey.fromBase58(
   requireEnv("DEPLOYER_PRIVATE_KEY")
 );
@@ -38,8 +42,19 @@ const protocolFeeRecipient = PublicKey.fromBase58(
 const deployer = deployerKey.toPublicKey();
 const zkappAddress = zkappKey.toPublicKey();
 
+if (
+  process.env.DEPLOYER_PUBLIC_KEY &&
+  deployer.toBase58() !== process.env.DEPLOYER_PUBLIC_KEY
+) {
+  throw new Error("DEPLOYER_PRIVATE_KEY does not match DEPLOYER_PUBLIC_KEY.");
+}
+
 Mina.setActiveInstance(Mina.Network(network));
 await MissionRegistry.compile();
+const deployerAccount = await fetchAccount({ publicKey: deployer });
+if (deployerAccount.error) {
+  throw new Error(`Deployer account not found: ${deployer.toBase58()}`);
+}
 const existing = await fetchAccount({ publicKey: zkappAddress });
 if (!existing.error) {
   throw new Error(
@@ -77,7 +92,9 @@ const configureResult = await configureTx
   .send();
 await configureResult.wait();
 
-console.log(JSON.stringify({
+await fetchAccount({ publicKey: zkappAddress });
+const deployment = {
+  version: "mba-mission-registry-deployment-v1",
   ok: true,
   contract: "MissionRegistry",
   zkappAddress: zkappAddress.toBase58(),
@@ -85,5 +102,30 @@ console.log(JSON.stringify({
   protocolFeeRecipient: protocolFeeRecipient.toBase58(),
   deployTransactionHash: deployResult.hash,
   configureTransactionHash: configureResult.hash,
-  network
+  registryRoot: registry.registryRoot.get().toString(),
+  sequence: registry.sequence.get().toString(),
+  deployedAt: new Date().toISOString(),
+  network: {
+    id: networkConfig.networkId,
+    name: networkConfig.networkName,
+    signingNetworkId: networkConfig.signingNetworkId,
+    graphql: networkConfig.graphql,
+    nativeAsset: networkConfig.nativeAsset
+  }
+};
+const outputPath =
+  process.env.MISSION_REGISTRY_DEPLOYMENT_PATH ??
+  path.join(
+    process.cwd(),
+    "data",
+    "deployment.mission-registry.zeko-sepolia.json"
+  );
+fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+const temporary = `${outputPath}.${process.pid}.${Date.now()}.tmp`;
+fs.writeFileSync(temporary, `${JSON.stringify(deployment, null, 2)}\n`);
+fs.renameSync(temporary, outputPath);
+
+console.log(JSON.stringify({
+  ...deployment,
+  deploymentPath: path.relative(process.cwd(), outputPath)
 }, null, 2));

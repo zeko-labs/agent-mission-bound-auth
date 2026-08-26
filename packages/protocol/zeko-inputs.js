@@ -14,13 +14,19 @@ import {
   buildStringSetMap,
   canonicalValueToField,
   digestHexToField,
-  minaToNanomina,
+  nativeToNanoUnits,
   stringSetKey,
   usdToMicrousd
 } from "./zeko-encoding.js";
+import {
+  ZEKO_GRAPHQL_NETWORK_ID,
+  ZEKO_NATIVE_ASSET,
+  ZEKO_NETWORK_NAME,
+  ZEKO_SIGNING_NETWORK_ID
+} from "./zeko-network.js";
 
 export const ZEKO_CAPABILITY_BINDING_VERSION =
-  "mba-zeko-capability-binding-v1";
+  "mba-zeko-capability-binding-v2";
 export const ZEKO_ACTION_NAMESPACE = "mba-boundary-action-v1";
 export const ZEKO_DOMAIN_NAMESPACE = "mba-boundary-domain-v1";
 
@@ -28,7 +34,7 @@ function field(value, label) {
   try {
     return Field.from(value);
   } catch {
-    throw new TypeError(`${label} must be a Mina Field value.`);
+    throw new TypeError(`${label} must be an o1js Field value.`);
   }
 }
 
@@ -218,8 +224,23 @@ export function validateZekoCapabilityBinding(binding, context = {}) {
     if (binding.version !== ZEKO_CAPABILITY_BINDING_VERSION) {
       throw new Error("Unsupported Zeko capability binding version.");
     }
-    if (binding.network !== "zeko:testnet") {
-      throw new Error("Zeko capability binding network must be zeko:testnet.");
+    if (binding.network !== ZEKO_GRAPHQL_NETWORK_ID) {
+      throw new Error(
+        `Zeko capability binding network must be ${ZEKO_GRAPHQL_NETWORK_ID}.`
+      );
+    }
+    if (binding.signingNetworkId !== ZEKO_SIGNING_NETWORK_ID) {
+      throw new Error(
+        `Zeko signing network must be ${ZEKO_SIGNING_NETWORK_ID}.`
+      );
+    }
+    if (
+      binding.nativeAsset?.symbol !== ZEKO_NATIVE_ASSET.symbol ||
+      binding.nativeAsset?.decimals !== ZEKO_NATIVE_ASSET.decimals ||
+      binding.nativeAsset?.standard !== ZEKO_NATIVE_ASSET.standard ||
+      binding.nativeAsset?.tokenId !== ZEKO_NATIVE_ASSET.tokenId
+    ) {
+      throw new Error("Zeko capability binding must use native sETH.");
     }
     const holder = publicKey(binding.holderPublicKey, "holderPublicKey");
     assertEqual(
@@ -305,6 +326,16 @@ export function validateZekoCapabilityBinding(binding, context = {}) {
     if (fee.equals(UInt64.zero).toBoolean()) {
       throw new Error("Zeko protocol fee must be nonzero.");
     }
+    assertEqual(
+      binding.payoutNativeUnits,
+      binding.payoutNanomina,
+      "Zeko native payout"
+    );
+    assertEqual(
+      binding.protocolFeeNativeUnits,
+      binding.protocolFeeNanomina,
+      "Zeko native protocol fee"
+    );
     publicKey(binding.beneficiary, "zekoBinding.beneficiary");
 
     const expectedApproval = Poseidon.hash([
@@ -403,18 +434,27 @@ export async function prepareMissionComplianceBinding(input = {}) {
     "maxSpendMicrousd"
   );
   const payoutNanomina = atomicAmount(
-    input,
-    "payoutNanomina",
-    "payoutMina",
-    minaToNanomina,
-    "payoutNanomina"
+    {
+      payoutNativeUnits:
+        input.payoutNativeUnits ?? input.payoutNanomina,
+      payoutNative: input.payoutNative ?? input.payoutMina
+    },
+    "payoutNativeUnits",
+    "payoutNative",
+    nativeToNanoUnits,
+    "payoutNativeUnits"
   );
   const protocolFeeNanomina = atomicAmount(
-    input,
-    "protocolFeeNanomina",
-    "protocolFeeMina",
-    minaToNanomina,
-    "protocolFeeNanomina"
+    {
+      protocolFeeNativeUnits:
+        input.protocolFeeNativeUnits ?? input.protocolFeeNanomina,
+      protocolFeeNative:
+        input.protocolFeeNative ?? input.protocolFeeMina
+    },
+    "protocolFeeNativeUnits",
+    "protocolFeeNative",
+    nativeToNanoUnits,
+    "protocolFeeNativeUnits"
   );
   const secrets = {
     principalCommitment,
@@ -480,7 +520,10 @@ export async function prepareMissionComplianceBinding(input = {}) {
 
   const binding = {
     version: ZEKO_CAPABILITY_BINDING_VERSION,
-    network: "zeko:testnet",
+    network: ZEKO_GRAPHQL_NETWORK_ID,
+    networkName: ZEKO_NETWORK_NAME,
+    signingNetworkId: ZEKO_SIGNING_NETWORK_ID,
+    nativeAsset: ZEKO_NATIVE_ASSET,
     missionIdHash: input.missionIdHash,
     authCommitment: input.authCommitment,
     missionIdHashField: publicInput.missionIdHash.toString(),
@@ -503,7 +546,9 @@ export async function prepareMissionComplianceBinding(input = {}) {
     maxSpendMicrousd: publicInput.maxSpendMicrousd.toString(),
     beneficiary: publicInput.beneficiary.toBase58(),
     payoutNanomina: publicInput.payoutNanomina.toString(),
-    protocolFeeNanomina: publicInput.protocolFeeNanomina.toString()
+    protocolFeeNanomina: publicInput.protocolFeeNanomina.toString(),
+    payoutNativeUnits: publicInput.payoutNanomina.toString(),
+    protocolFeeNativeUnits: publicInput.protocolFeeNanomina.toString()
   };
   const validation = validateZekoCapabilityBinding(binding, {
     missionIdHash: input.missionIdHash,

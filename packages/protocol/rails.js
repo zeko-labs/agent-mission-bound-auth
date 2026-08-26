@@ -2,6 +2,7 @@ import {
   isProductionProfile,
   isSettlementEnabled
 } from "./runtime.js";
+import { zekoSepoliaConfig } from "./zeko-network.js";
 
 const env = process.env;
 
@@ -18,11 +19,6 @@ function decimalToUnits(value, decimals) {
     BigInt(whole) * (10n ** BigInt(decimals)) +
     BigInt((fraction + "0".repeat(decimals)).slice(0, decimals) || "0")
   ).toString();
-}
-
-function graphqlUrl(value, fallback) {
-  const url = value ?? fallback;
-  return url.endsWith("/graphql") ? url : `${url.replace(/\/$/, "")}/graphql`;
 }
 
 function evmRail(input) {
@@ -56,22 +52,30 @@ function evmRail(input) {
 }
 
 function buildRails() {
+  const zeko = zekoSepoliaConfig(env);
   return {
   zeko: {
     id: "zeko",
     settlementRail: "zeko",
-    network: "zeko:testnet",
-    chainName: "Zeko Testnet",
-    asset: { symbol: "tMINA", decimals: 9, standard: "native" },
-    assetId: "MINA",
-    amount: decimalToUnits(env.ZEKO_AMOUNT ?? "0.015", 9),
+    network: zeko.networkId,
+    chainName: zeko.networkName,
+    asset: {
+      symbol: zeko.nativeAsset.symbol,
+      decimals: zeko.nativeAsset.decimals,
+      standard: zeko.nativeAsset.standard
+    },
+    assetId: zeko.nativeAsset.tokenId,
+    amount: decimalToUnits(
+      env.ZEKO_AMOUNT ?? "0.015",
+      zeko.nativeAsset.decimals
+    ),
     displayAmount: env.ZEKO_AMOUNT ?? "0.015",
     payTo:
       env.MISSION_REGISTRY_PUBLIC_KEY ??
       env.ZEKO_PAY_TO ??
       "B62qokikatWpFvyqGG9NekejnFEumRyUjrbjChaQfrvDmKwTC3UXzzz",
     settlementModel: "x402-exact-settlement-zkapp-v1",
-    description: "Zeko-native settlement for ZK-authorized private compute.",
+    description: "sETH settlement for ZK-authorized work on Zeko Ethereum Sepolia.",
     preview: false,
     configured: Boolean(
       env.MISSION_REGISTRY_PUBLIC_KEY ?? env.ZEKO_PAY_TO
@@ -86,9 +90,12 @@ function buildRails() {
         beneficiaryAddress:
           env.ZEKO_BENEFICIARY ??
           "B62qokikatWpFvyqGG9NekejnFEumRyUjrbjChaQfrvDmKwTC3UXzzz",
-        graphql: graphqlUrl(env.ZEKO_GRAPHQL, "https://testnet.zeko.io/graphql"),
-        archive: graphqlUrl(env.ZEKO_ARCHIVE, "https://archive.testnet.zeko.io/graphql"),
-        explorer: "https://zekoscan.io/testnet",
+        graphql: zeko.graphql,
+        archive: zeko.archive,
+        signingNetworkId: zeko.signingNetworkId,
+        networkName: zeko.networkName,
+        nativeAsset: zeko.nativeAsset,
+        explorer: zeko.explorer,
         programmablePrivacy: {
           auth: "zk-oauth-v1",
           data: "private-compute-commitment-v1",

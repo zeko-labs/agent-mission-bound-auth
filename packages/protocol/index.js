@@ -18,6 +18,7 @@ export * from "./schema-validation.js";
 export * from "./storage.js";
 export * from "./x402.js";
 export * from "./zeko-plan.js";
+export * from "./zeko-network.js";
 export * from "./zeko-encoding.js";
 export * from "./zeko-chain.js";
 export * from "./zeko-proof.js";

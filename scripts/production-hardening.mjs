@@ -366,8 +366,8 @@ try {
     allowedDomains: approval.approvedDomains,
     validUntilSlot: 50_000,
     maxSpendUsd: mission.constraints.maxSpendUsd,
-    payoutMina: "0.015",
-    protocolFeeMina: "0.001"
+    payoutNative: "0.015",
+    protocolFeeNative: "0.001"
   });
   const capabilityInput = {
     issuer: "https://mba.example/",
@@ -435,8 +435,8 @@ try {
     allowedDomains: capability.allowedDomains,
     validUntilSlot: 50_000,
     maxSpendUsd: capability.maxSpendUsd,
-    payoutMina: "0.015",
-    protocolFeeMina: "0.001"
+    payoutNative: "0.015",
+    protocolFeeNative: "0.001"
   });
   const renewed = renewMissionCapability(capability, {
     expiresAt: capability.expiresAt,
@@ -543,7 +543,7 @@ try {
     settlementRail: "zeko",
     networkId: "zeko:testnet",
     amount: "0.1",
-    asset: { symbol: "tMINA", decimals: 9, standard: "native" },
+    asset: { symbol: "sETH", decimals: 9, standard: "native" },
     payTo: "B62test",
     expiresAtIso: new Date(Date.now() + 60_000).toISOString(),
     authorization: { mode: "mock-facilitator" }
@@ -558,7 +558,7 @@ try {
     accepts: [{
       network: "zeko:testnet",
       amount: "0.1",
-      asset: { symbol: "tMINA", decimals: 9, standard: "native" },
+      asset: { symbol: "sETH", decimals: 9, standard: "native" },
       payTo: "B62test",
       extra: {
         mba: {

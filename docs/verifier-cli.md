@@ -13,7 +13,7 @@ npm run mba -- verify settlement receipt.json anchor.json \
   --verification-key verification-key.json \
   --authority-jwks authority-jwks.json \
   --domain-verifier domain-verifier.mjs \
-  --graphql https://testnet.zeko.io/graphql \
+  --graphql https://sepolia.zeko.io/graphql \
   --registry B62...
 ```
 

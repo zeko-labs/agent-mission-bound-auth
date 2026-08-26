@@ -499,6 +499,8 @@ export function verifyCapabilityRenewal(renewal, previousCapability, renewedCapa
   if (previousCapability.zekoBinding && renewedCapability.zekoBinding) {
     for (const key of [
       "network",
+      "networkName",
+      "signingNetworkId",
       "missionIdHash",
       "authCommitment",
       "missionIdHashField",
@@ -510,7 +512,9 @@ export function verifyCapabilityRenewal(renewal, previousCapability, renewedCapa
       "datasetCommitment",
       "beneficiary",
       "payoutNanomina",
-      "protocolFeeNanomina"
+      "protocolFeeNanomina",
+      "payoutNativeUnits",
+      "protocolFeeNativeUnits"
     ]) {
       if (
         previousCapability.zekoBinding[key] !==

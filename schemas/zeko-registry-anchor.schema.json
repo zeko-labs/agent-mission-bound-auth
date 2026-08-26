@@ -6,6 +6,9 @@
   "required": [
     "version",
     "networkId",
+    "networkName",
+    "signingNetworkId",
+    "nativeAsset",
     "registryAddress",
     "transactionHash",
     "sequence",
@@ -19,14 +22,29 @@
     "beneficiary",
     "payoutNanomina",
     "protocolFeeNanomina",
+    "payoutNativeUnits",
+    "protocolFeeNativeUnits",
     "proofArtifactHash",
     "anchoredAt",
     "anchorId",
     "anchorHash"
   ],
   "properties": {
-    "version": { "const": "mba-zeko-registry-anchor-v1" },
+    "version": { "const": "mba-zeko-registry-anchor-v2" },
     "networkId": { "const": "zeko:testnet" },
+    "networkName": { "const": "Zeko Ethereum Sepolia" },
+    "signingNetworkId": { "const": "testnet" },
+    "nativeAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["symbol", "decimals", "standard", "tokenId"],
+      "properties": {
+        "symbol": { "const": "sETH" },
+        "decimals": { "const": 9 },
+        "standard": { "const": "native" },
+        "tokenId": { "const": "wSHV2S4qX9jFsLjQo8r1BsMLH2ZRKsZx6EJd1sbozGPieEC4Jf" }
+      }
+    },
     "registryAddress": { "type": "string", "pattern": "^B62" },
     "transactionHash": { "type": "string", "minLength": 1 },
     "sequence": { "$ref": "#/$defs/uint" },
@@ -40,6 +58,8 @@
     "beneficiary": { "type": "string", "pattern": "^B62" },
     "payoutNanomina": { "$ref": "#/$defs/uint" },
     "protocolFeeNanomina": { "$ref": "#/$defs/uint" },
+    "payoutNativeUnits": { "$ref": "#/$defs/uint" },
+    "protocolFeeNativeUnits": { "$ref": "#/$defs/uint" },
     "proofArtifactHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "blockHeight": { "type": ["string", "null"], "pattern": "^[0-9]+$" },
     "anchoredAt": { "type": "string", "format": "date-time" },

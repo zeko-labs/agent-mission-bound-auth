@@ -1,9 +1,15 @@
 import { id, sha256Hex } from "./digest.js";
 import { verifyMissionComplianceProofArtifact } from "./zeko-proof.js";
 import { validateArtifactSchema } from "./schema-validation.js";
+import {
+  ZEKO_GRAPHQL_NETWORK_ID,
+  ZEKO_NATIVE_ASSET,
+  ZEKO_NETWORK_NAME,
+  ZEKO_SIGNING_NETWORK_ID
+} from "./zeko-network.js";
 
 export const ZEKO_REGISTRY_ANCHOR_VERSION =
-  "mba-zeko-registry-anchor-v1";
+  "mba-zeko-registry-anchor-v2";
 
 function requiredString(value, label) {
   if (typeof value !== "string" || value.length === 0) {
@@ -38,7 +44,11 @@ async function queryGraphql(endpoint, query, variables) {
 export function buildZekoRegistryAnchor(input = {}) {
   const body = {
     version: ZEKO_REGISTRY_ANCHOR_VERSION,
-    networkId: input.networkId ?? "zeko:testnet",
+    networkId: input.networkId ?? ZEKO_GRAPHQL_NETWORK_ID,
+    networkName: input.networkName ?? ZEKO_NETWORK_NAME,
+    signingNetworkId:
+      input.signingNetworkId ?? ZEKO_SIGNING_NETWORK_ID,
+    nativeAsset: input.nativeAsset ?? ZEKO_NATIVE_ASSET,
     registryAddress: requiredString(
       input.registryAddress,
       "registryAddress"
@@ -70,6 +80,12 @@ export function buildZekoRegistryAnchor(input = {}) {
     beneficiary: requiredString(input.beneficiary, "beneficiary"),
     payoutNanomina: String(input.payoutNanomina),
     protocolFeeNanomina: String(input.protocolFeeNanomina),
+    payoutNativeUnits: String(
+      input.payoutNativeUnits ?? input.payoutNanomina
+    ),
+    protocolFeeNativeUnits: String(
+      input.protocolFeeNativeUnits ?? input.protocolFeeNanomina
+    ),
     proofArtifactHash: requiredString(
       input.proofArtifactHash,
       "proofArtifactHash"
@@ -128,6 +144,15 @@ export function verifyZekoRegistryAnchorBinding(
     if (String(anchor[field]) !== String(expected)) {
       return { valid: false, reason: `Zeko registry anchor ${field} mismatch.` };
     }
+  }
+  if (
+    anchor.payoutNativeUnits !== anchor.payoutNanomina ||
+    anchor.protocolFeeNativeUnits !== anchor.protocolFeeNanomina
+  ) {
+    return {
+      valid: false,
+      reason: "Zeko native-unit aliases do not match proof amounts."
+    };
   }
   if (
     anchor.proofArtifactHash !== receipt?.proof?.artifact?.artifactHash

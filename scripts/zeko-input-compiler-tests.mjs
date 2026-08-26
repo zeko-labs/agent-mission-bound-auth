@@ -46,13 +46,25 @@ const prepared = await prepareMissionComplianceBinding({
   allowedDomains,
   validUntilSlot: 500,
   maxSpendUsd: "2.00",
-  payoutMina: "0.015",
-  protocolFeeMina: "0.001"
+  payoutNative: "0.015",
+  protocolFeeNative: "0.001"
 });
 
 assert.equal(
   prepared.binding.holderKeyCommitment,
   zekoHolderKeyCommitment(holderPrivateKey.toPublicKey())
+);
+assert.equal(prepared.binding.networkName, "Zeko Ethereum Sepolia");
+assert.equal(prepared.binding.signingNetworkId, "testnet");
+assert.equal(prepared.binding.nativeAsset.symbol, "sETH");
+assert.equal(prepared.binding.nativeAsset.decimals, 9);
+assert.equal(
+  prepared.binding.payoutNativeUnits,
+  prepared.binding.payoutNanomina
+);
+assert.equal(
+  prepared.binding.protocolFeeNativeUnits,
+  prepared.binding.protocolFeeNanomina
 );
 assert.equal(
   validateZekoCapabilityBinding(prepared.binding, {

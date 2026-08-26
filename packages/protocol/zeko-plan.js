@@ -1,15 +1,20 @@
 import { sha256Hex } from "./digest.js";
 import { RAILS } from "./rails.js";
+import { zekoSepoliaConfig } from "./zeko-network.js";
 
 export function buildZekoContractPlan() {
   const zekoRail = RAILS.zeko;
+  const network = zekoSepoliaConfig(process.env);
   const plan = {
     version: "mba-mission-registry-plan-v1",
     contract: {
       name: "MissionRegistry",
       source: "zkapp/MissionRegistry.ts",
       complianceProgram: "zkapp/MissionComplianceProgram.ts",
-      networkId: "zeko:testnet",
+      networkId: network.networkId,
+      networkName: network.networkName,
+      signingNetworkId: network.signingNetworkId,
+      nativeAsset: network.nativeAsset,
       graphql: zekoRail.extensions?.zeko?.graphql,
       archive: zekoRail.extensions?.zeko?.archive
     },
@@ -62,7 +67,9 @@ export function buildZekoContractPlan() {
         "nullifier",
         "beneficiary",
         "payoutNanomina",
-        "protocolFeeNanomina"
+        "protocolFeeNanomina",
+        "payoutNativeUnits",
+        "protocolFeeNativeUnits"
       ]
     }
   };

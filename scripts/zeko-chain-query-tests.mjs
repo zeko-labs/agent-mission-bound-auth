@@ -32,7 +32,7 @@ globalThis.fetch = async (_url, init) => {
 };
 
 const included = await fetchZekoTransactionStatus({
-  graphql: "https://testnet.zeko.io/graphql",
+  graphql: "https://sepolia.zeko.io/graphql",
   registryAddress,
   transactionHash
 });
@@ -58,7 +58,7 @@ responseBody = {
   }
 };
 const nonCanonical = await fetchZekoTransactionStatus({
-  graphql: "https://testnet.zeko.io/graphql",
+  graphql: "https://sepolia.zeko.io/graphql",
   registryAddress,
   transactionHash
 });
@@ -66,7 +66,7 @@ assert.equal(nonCanonical.included, false);
 
 responseBody = { data: { events: [] } };
 const missing = await fetchZekoTransactionStatus({
-  graphql: "https://testnet.zeko.io/graphql",
+  graphql: "https://sepolia.zeko.io/graphql",
   registryAddress,
   transactionHash
 });

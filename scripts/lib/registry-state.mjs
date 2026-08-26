@@ -1,10 +1,18 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Field, MerkleMap } from "o1js";
+import {
+  o1jsZekoSepoliaNetwork,
+  zekoSepoliaConfig
+} from "../../packages/protocol/zeko-network.js";
 
 export function registryStatePath() {
   return process.env.MISSION_REGISTRY_STATE_PATH ??
-    path.join(process.cwd(), "data", "mission-registry-state.json");
+    path.join(
+      process.cwd(),
+      "data",
+      "mission-registry-state.zeko-sepolia.json"
+    );
 }
 
 export function loadRegistryState() {
@@ -72,17 +80,9 @@ export function requireEnv(name, fallbackName) {
 }
 
 export function zekoNetwork() {
-  const mina = process.env.ZEKO_GRAPHQL ?? "https://testnet.zeko.io/graphql";
-  const archive =
-    process.env.ZEKO_ARCHIVE ??
-    "https://archive.testnet.zeko.io/graphql";
-  return {
-    networkId: "zeko",
-    mina: mina.endsWith("/graphql")
-      ? mina
-      : `${mina.replace(/\/$/, "")}/graphql`,
-    archive: archive.endsWith("/graphql")
-      ? archive
-      : `${archive.replace(/\/$/, "")}/graphql`
-  };
+  return o1jsZekoSepoliaNetwork(process.env);
+}
+
+export function zekoConfig() {
+  return zekoSepoliaConfig(process.env);
 }

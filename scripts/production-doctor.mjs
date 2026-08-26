@@ -6,6 +6,7 @@ import {
   missionAuthProfile,
   missionSettlementProfile
 } from "../packages/protocol/runtime.js";
+import { zekoSepoliaConfig } from "../packages/protocol/zeko-network.js";
 
 loadLocalEnv();
 
@@ -44,21 +45,41 @@ async function checkZeko() {
       reason: "Zeko settlement profile is not active."
     };
   }
-  const graphql = process.env.ZEKO_GRAPHQL?.endsWith("/graphql")
-    ? process.env.ZEKO_GRAPHQL
-    : `${(process.env.ZEKO_GRAPHQL ?? "https://testnet.zeko.io").replace(/\/$/, "")}/graphql`;
+  const config = zekoSepoliaConfig(process.env);
+  const graphql = config.graphql;
 
   try {
     const res = await fetch(graphql, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ query: "query SequencerPK { sequencerPk }" })
+      body: JSON.stringify({
+        query: `query ZekoSepoliaIdentity {
+          networkID
+          syncStatus
+          sequencerPk
+          signatureKind
+          genesisConstants { accountCreationFee }
+        }`
+      })
     });
     const body = await res.json();
     return {
-      ok: res.ok && Boolean(body.data?.sequencerPk),
+      ok:
+        res.ok &&
+        body.data?.networkID === config.networkId &&
+        String(body.data?.signatureKind).toLowerCase() ===
+          config.signingNetworkId &&
+        body.data?.syncStatus === "SYNCED" &&
+        Boolean(body.data?.sequencerPk),
       graphql,
+      networkId: body.data?.networkID ?? null,
+      signingNetworkId: config.signingNetworkId,
+      signatureKind: body.data?.signatureKind ?? null,
+      syncStatus: body.data?.syncStatus ?? null,
       sequencerPk: body.data?.sequencerPk ?? null,
+      accountCreationFee:
+        body.data?.genesisConstants?.accountCreationFee ?? null,
+      nativeAsset: config.nativeAsset,
       errors: body.errors ?? null
     };
   } catch (error) {

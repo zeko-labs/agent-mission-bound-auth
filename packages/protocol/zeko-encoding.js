@@ -109,6 +109,9 @@ export function usdToMicrousd(value) {
   return parseDecimalToUnits(value, 6, "USD amount");
 }
 
-export function minaToNanomina(value) {
-  return parseDecimalToUnits(value, 9, "MINA amount");
+export function nativeToNanoUnits(value) {
+  return parseDecimalToUnits(value, 9, "Zeko native amount");
 }
+
+// Retained for v1 proof and receipt code that uses the historical wire name.
+export const minaToNanomina = nativeToNanoUnits;

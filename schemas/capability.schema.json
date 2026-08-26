@@ -22,6 +22,9 @@
       "required": [
         "version",
         "network",
+        "networkName",
+        "signingNetworkId",
+        "nativeAsset",
         "missionIdHash",
         "authCommitment",
         "missionIdHashField",
@@ -43,11 +46,26 @@
         "maxSpendMicrousd",
         "beneficiary",
         "payoutNanomina",
-        "protocolFeeNanomina"
+        "protocolFeeNanomina",
+        "payoutNativeUnits",
+        "protocolFeeNativeUnits"
       ],
       "properties": {
-        "version": { "const": "mba-zeko-capability-binding-v1" },
+        "version": { "const": "mba-zeko-capability-binding-v2" },
         "network": { "const": "zeko:testnet" },
+        "networkName": { "const": "Zeko Ethereum Sepolia" },
+        "signingNetworkId": { "const": "testnet" },
+        "nativeAsset": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["symbol", "decimals", "standard", "tokenId"],
+          "properties": {
+            "symbol": { "const": "sETH" },
+            "decimals": { "const": 9 },
+            "standard": { "const": "native" },
+            "tokenId": { "type": "string", "minLength": 1 }
+          }
+        },
         "missionIdHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "authCommitment": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "missionIdHashField": { "type": "string", "pattern": "^[0-9]+$" },
@@ -69,7 +87,9 @@
         "maxSpendMicrousd": { "type": "string", "pattern": "^[0-9]+$" },
         "beneficiary": { "type": "string", "minLength": 1 },
         "payoutNanomina": { "type": "string", "pattern": "^[0-9]+$" },
-        "protocolFeeNanomina": { "type": "string", "pattern": "^[0-9]+$" }
+        "protocolFeeNanomina": { "type": "string", "pattern": "^[0-9]+$" },
+        "payoutNativeUnits": { "type": "string", "pattern": "^[0-9]+$" },
+        "protocolFeeNativeUnits": { "type": "string", "pattern": "^[0-9]+$" }
       }
     },
     "missionIdHash": { "type": "string" },
