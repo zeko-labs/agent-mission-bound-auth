@@ -89,6 +89,12 @@ This profile adds:
 - MissionRegistry approval, revocation, escrow, receipt, and nullifier state
 - atomic beneficiary payout and protocol-fee release
 
+The active deployment target is Zeko Ethereum Sepolia. MBA submits ordinary
+o1js transactions to `https://sepolia.zeko.io/graphql`, signs with the
+`testnet` domain required by that endpoint, and settles its zkApp escrow in
+native 9-decimal sETH. Ethereum rollup batching and bridge finality are below
+the MBA application boundary and are not runtime dependencies of this profile.
+
 The domain verifier is not an MBA compute monopoly. It can be the merchant,
 application, an independent verifier, a local prover, or a composed domain
 circuit. MissionRegistry releases value only after the complete proof and

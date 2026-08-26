@@ -21,6 +21,7 @@ import {
   requireEnv,
   saveRegistryState,
   setRegistryEntry,
+  zekoConfig,
   zekoNetwork
 } from "./lib/registry-state.mjs";
 
@@ -46,7 +47,7 @@ const registryAddress = PublicKey.fromBase58(
   )
 );
 const network = zekoNetwork();
-const fee = UInt64.from(process.env.TX_FEE ?? "2000000000");
+const fee = UInt64.from(zekoConfig().transactionFee);
 Mina.setActiveInstance(Mina.Network(network));
 await MissionRegistry.compile();
 await fetchAccount({ publicKey: registryAddress });

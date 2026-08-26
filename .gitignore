@@ -1,8 +1,10 @@
 .env
 .env.local
 .env.production
+.env.*.local
 data/keys/
 data/mission-registry-state.json
+data/mission-registry-state.*.json
 build/
 dist-zkapp/
 node_modules/

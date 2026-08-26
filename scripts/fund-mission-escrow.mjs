@@ -20,6 +20,7 @@ import {
   requireEnv,
   saveRegistryState,
   setRegistryEntry,
+  zekoConfig,
   zekoNetwork
 } from "./lib/registry-state.mjs";
 
@@ -50,11 +51,13 @@ const escrow = new MissionEscrow({
   beneficiary: PublicKey.fromBase58(
     input.beneficiary ?? requireEnv("PRIVATE_COMPUTE_BENEFICIARY_PUBLIC_KEY")
   ),
-  amountNanomina: UInt64.from(input.amountNanomina),
+  amountNanomina: UInt64.from(
+    input.amountNativeUnits ?? input.amountNanomina
+  ),
   refundAfterSlot: UInt32.from(input.refundAfterSlot),
   escrowNonce: inputField(input.escrowNonce, "escrowNonce")
 });
-const fee = UInt64.from(process.env.TX_FEE ?? "2000000000");
+const fee = UInt64.from(zekoConfig().transactionFee);
 
 Mina.setActiveInstance(Mina.Network(network));
 await MissionRegistry.compile();
@@ -88,7 +91,7 @@ console.log(JSON.stringify({
     missionIdHash: escrow.missionIdHash.toString(),
     payer: escrow.payer.toBase58(),
     beneficiary: escrow.beneficiary.toBase58(),
-    amountNanomina: escrow.amountNanomina.toString(),
+    amountNativeUnits: escrow.amountNanomina.toString(),
     refundAfterSlot: escrow.refundAfterSlot.toString(),
     escrowNonce: escrow.escrowNonce.toString(),
     escrowKey: escrow.key().toString()

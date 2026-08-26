@@ -40,6 +40,12 @@ Production receipts carry `mba-mission-compliance-proof-v1`:
 The complete statement is defined by
 `schemas/mission-compliance-proof.schema.json`.
 
+The v1 proof statement retains the historical field names
+`payoutNanomina` and `protocolFeeNanomina` so existing circuit and verification
+key artifacts remain stable. On Zeko Ethereum Sepolia those integers are
+9-decimal native sETH units. Signed capabilities and registry anchors expose
+the equivalent `payoutNativeUnits` and `protocolFeeNativeUnits` aliases.
+
 The verifier checks artifact integrity, trusted key hash, circuit digest,
 serialized proof validity, and equality between decoded proof input and the
 named public statement. `statementHash` in the receipt hashes that same named
@@ -57,10 +63,12 @@ the configured domain adapter against the evidence.
 
 ## Zeko Anchor
 
-`mba-zeko-registry-anchor-v1` links the proof artifact and public settlement
+`mba-zeko-registry-anchor-v2` links the proof artifact and public settlement
 fields to a MissionRegistry transaction, sequence, and resulting root.
-Verification confirms transaction inclusion and registry state. Historical
-anchors require archive evidence.
+It also identifies the Zeko Ethereum Sepolia network, `testnet` signing domain,
+and native sETH asset. Verification confirms Zeko transaction inclusion and
+registry state. Historical anchors require actions/events evidence from a
+transaction-capable Zeko endpoint.
 
 ## Settlement Rule
 

@@ -16,9 +16,11 @@ MBA has three adoption layers:
   receipts without a compute operator, TEE, x402 facilitator, or chain.
 - **Zeko settlement:** Pallas-bound domain verification, real compliance
   proofs, x402 settlement, registry nullifiers, receipt anchors, escrow, and
-  conditional payouts.
+  conditional sETH payouts on Zeko Ethereum Sepolia.
 
 See [protocol profiles](./docs/profiles.md) for guarantees and configuration.
+See [Zeko Ethereum Sepolia](./docs/zeko-ethereum-sepolia.md) for the active
+network profile and deployment procedure.
 
 ## What MBA Solves
 
@@ -36,6 +38,13 @@ See [protocol profiles](./docs/profiles.md) for guarantees and configuration.
   payout and protocol fee only once.
 
 ## Zeko Core
+
+MBA targets the live Zeko Ethereum Sepolia application layer at
+`https://sepolia.zeko.io/graphql`. It continues to use ordinary o1js zkApps,
+Pallas keys, B62 addresses, and the `testnet` transaction-signing domain. The
+native asset is 9-decimal sETH. MBA does not operate an Ethereum batch
+settler, bridge, or Ethereum RPC client; those are network responsibilities,
+just as block production was not part of the application protocol.
 
 `zkapp/MissionComplianceProgram.ts` proves a bounded mission trace. Its public
 statement includes the identity, capability, policy, approval, holder, trusted
@@ -133,8 +142,8 @@ const prepared = await prepareMissionComplianceBinding({
   allowedDomains,
   validUntilSlot,
   maxSpendUsd,
-  payoutMina,
-  protocolFeeMina
+  payoutNative,       // decimal sETH
+  protocolFeeNative  // decimal sETH
 });
 ```
 
@@ -193,9 +202,15 @@ npm run zkapp:get-state
 ```
 
 Scripts consume JSON from stdin and maintain
-`MISSION_REGISTRY_STATE_PATH`, an atomic local Merkle witness index. Production
+`MISSION_REGISTRY_STATE_PATH`, an atomic, Sepolia-scoped local Merkle witness
+index. Production
 operators should place this index in transactional, access-controlled storage
 and serialize writers.
+
+The v1 circuit field names `payoutNanomina` and `protocolFeeNanomina` are
+retained to preserve the compiled proof identity. On the active Sepolia
+deployment they contain native sETH base units. Builder-facing inputs and
+anchors use `payoutNativeUnits` and `protocolFeeNativeUnits` aliases.
 
 ## Verification
 
@@ -208,7 +223,7 @@ mba verify settlement receipt.json anchor.json \
   --verification-key verification-key.json \
   --authority-jwks authority-jwks.json \
   --domain-verifier domain-verifier.mjs \
-  --graphql https://testnet.zeko.io/graphql \
+  --graphql https://sepolia.zeko.io/graphql \
   --registry B62...
 ```
 
@@ -216,7 +231,7 @@ A structurally valid receipt is not settlement authority. Production release
 requires a valid `mba-mission-compliance-proof-v1`, a trusted verification key,
 a trusted mission-authority JWKS, a trusted domain-verifier module, and
 chain-backed
-`mba-zeko-registry-anchor-v1` verification.
+`mba-zeko-registry-anchor-v2` verification.
 
 ## Layout
 

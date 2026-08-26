@@ -28,7 +28,7 @@ sequence cannot authorize another.
 
 ## Anchor Evidence
 
-`mba-zeko-registry-anchor-v1` binds:
+`mba-zeko-registry-anchor-v2` binds:
 
 - registry address, transaction hash, sequence, and resulting registry root
 - mission, capability, approval, receipt, nullifier, and payment commitments

@@ -1,6 +1,6 @@
 ---
 name: agent-mission-bound-auth
-description: Build, review, or extend Agent Mission-Bound Auth demos and protocol integrations. Use when working on autonomous-agent authorization with enterprise OAuth/OIDC or SAML SSO entrypoints, mission-scoped approvals, ZK authorization commitments, private-compute receipts, x402 payment context, Zeko anchoring, Auth0 or Okta sandbox verification, or PR packaging into zeko-labs developer demos.
+description: Build, review, or extend Agent Mission-Bound Auth demos and protocol integrations. Use when working on autonomous-agent authorization with enterprise OAuth/OIDC or SAML SSO entrypoints, mission-scoped approvals, ZK authorization commitments, private-compute receipts, x402 payment context, Zeko anchoring, or Auth0 and Okta sandbox verification.
 ---
 
 # Agent Mission-Bound Auth
@@ -71,6 +71,12 @@ For customer IdPs:
 ## Zeko And Payment Guidance
 
 Zeko is the verifiability layer, not a mandatory runtime dependency for every demo run.
+
+The active chain target is Zeko Ethereum Sepolia. Build ordinary o1js zkApps
+against `https://sepolia.zeko.io/graphql`, use `testnet` as the o1js/Auro
+signing domain, use B62/Pallas keys, and treat 9-decimal sETH as the native
+asset. Do not add Ethereum batch-settlement, bridge, or RPC machinery to MBA;
+those are network responsibilities outside the application protocol.
 
 Use Zeko for:
 

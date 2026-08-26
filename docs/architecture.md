@@ -11,7 +11,7 @@ sequenceDiagram
   participant Holder as Agent Holder
   participant App as Domain App
   participant X402 as x402 Facilitator
-  participant Zeko as MissionRegistry on Zeko
+  participant Zeko as MissionRegistry on Zeko Ethereum Sepolia
 
   Principal->>IdP: Authenticate
   IdP-->>MBA: Authorization code + ID token
@@ -29,7 +29,7 @@ sequenceDiagram
   Holder->>Holder: Prove mission compliance privately
   Holder->>Zeko: Settle proof against funded escrow
   Zeko->>Zeko: Consume nullifier and record receipt
-  Zeko-->>Holder: Atomic beneficiary payout and protocol fee
+  Zeko-->>Holder: Atomic sETH beneficiary payout and protocol fee
   end
 ```
 

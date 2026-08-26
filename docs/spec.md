@@ -132,10 +132,11 @@ capability, policy, dataset, domain proof, and output commitments. Production
 receipt verification then calls the configured domain adapter to validate the
 proof's semantics. A composed domain circuit can replace the attestation model.
 
-Canonical strings and objects map to Mina fields by
+Canonical strings and objects map to o1js `Field` values by
 `mba-zeko-encoding-v1`: canonical JSON or NFC string bytes, SHA-256, then
-reduction modulo the Mina field order. Monetary values use integer microusd,
-nanomina, or asset base units.
+reduction modulo the Pallas field order. Monetary values use integer microusd
+or asset base units. Zeko Ethereum Sepolia's native sETH uses 9-decimal base
+units.
 
 ## Registry And Settlement
 
@@ -186,6 +187,9 @@ A production Zeko settlement verifier:
 8. confirms the Zeko transaction and registry state; and
 9. rejects historical roots unless an archive-backed verifier proves the
    corresponding event.
+
+The verifier targets Zeko's application-layer state and events. It does not
+run or verify the network's Ethereum batch-settlement pipeline.
 
 A receipt or client-computed anchor alone never authorizes payout.
 

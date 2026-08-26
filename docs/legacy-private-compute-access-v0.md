@@ -4,7 +4,7 @@
 It is retained as a frozen compatibility contract and is not an alias for
 `MissionRegistry`.
 
-## Testnet Deployment
+## Retired Mina-Backed Testnet Deployment
 
 ```text
 network: zeko:testnet
@@ -22,7 +22,8 @@ MissionCompliance proof, enforce registry nullifiers, manage mission escrow, or
 release beneficiary and protocol-fee payouts atomically.
 
 Existing v0 users can continue verifying this contract and its historical
-transactions. New trustless settlement deployments use
+transactions against the retired network records. It is not an active MBA
+deployment target. New trustless settlement deployments use
 `zkapp/MissionRegistry.ts` with a fresh zkApp key because its state layout and
 verification key are intentionally different.
 

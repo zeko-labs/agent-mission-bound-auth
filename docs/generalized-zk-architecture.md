@@ -323,6 +323,11 @@ payoutNanomina
 protocolFeeNanomina
 ```
 
+Those two names are frozen v1 circuit fields. On Zeko Ethereum Sepolia they
+represent native 9-decimal sETH base units; capability and anchor artifacts
+also publish the clearer `payoutNativeUnits` and `protocolFeeNativeUnits`
+aliases.
+
 ### Reference Private Witness
 
 ```text

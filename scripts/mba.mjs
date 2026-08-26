@@ -23,11 +23,11 @@ function usage() {
       "mba verify receipt receipt.json",
       "mba verify receipt --production-strict receipt.json --verification-key verification-key.json --authority-jwks authority-jwks.json --domain-verifier verifier.mjs",
       "mba verify proof proof.json --verification-key verification-key.json",
-      "mba verify zeko receipt.json anchor.json --verification-key verification-key.json --graphql https://testnet.zeko.io/graphql",
+      "mba verify zeko receipt.json anchor.json --verification-key verification-key.json --graphql https://sepolia.zeko.io/graphql",
       "mba verify bundle execution-bundle.json",
       "mba verify trace trace.json",
       "mba verify anchor receipt.json anchor.json",
-      "mba verify settlement receipt.json anchor.json --verification-key verification-key.json --authority-jwks authority-jwks.json --domain-verifier verifier.mjs --graphql https://testnet.zeko.io/graphql"
+      "mba verify settlement receipt.json anchor.json --verification-key verification-key.json --authority-jwks authority-jwks.json --domain-verifier verifier.mjs --graphql https://sepolia.zeko.io/graphql"
     ]
   };
 }

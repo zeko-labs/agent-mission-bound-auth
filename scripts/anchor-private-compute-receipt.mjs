@@ -34,6 +34,7 @@ import {
   requireEnv,
   saveRegistryState,
   setRegistryEntry,
+  zekoConfig,
   zekoNetwork
 } from "./lib/registry-state.mjs";
 
@@ -54,7 +55,8 @@ const registryAddress = PublicKey.fromBase58(
     "PRIVATE_COMPUTE_ZKAPP_PUBLIC_KEY"
   )
 );
-const fee = UInt64.from(process.env.TX_FEE ?? "2000000000");
+const networkConfig = zekoConfig();
+const fee = UInt64.from(networkConfig.transactionFee);
 
 Mina.setActiveInstance(Mina.Network(network));
 const { verificationKey } = await MissionComplianceProgram.compile();
@@ -130,7 +132,7 @@ await result.wait();
 const sequence = BigInt(state.stored.sequence ?? "0") + 1n;
 const saved = saveRegistryState(state, sequence);
 const anchor = buildZekoRegistryAnchor({
-  networkId: "zeko:testnet",
+  networkId: networkConfig.networkId,
   registryAddress: registryAddress.toBase58(),
   transactionHash: result.hash,
   sequence: saved.sequence,

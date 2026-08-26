@@ -17,6 +17,9 @@ events:
 
 Private data and event details remain witnesses. The public statement contains
 only commitments, roots, counters, the beneficiary, and settlement amounts.
+The active network is Zeko Ethereum Sepolia, where those settlement amounts are
+native 9-decimal sETH units. The v1 TypeScript field names retain `Nanomina`
+only to preserve the circuit and verification-key identity.
 
 `domainProofCommitment` binds domain-specific evidence. The circuit verifies a
 mission-approved Pallas verifier attestation over that evidence and its output.
@@ -44,5 +47,5 @@ the beneficiary and fee recipient. Expired active escrows can be refunded.
 original class, receipt type, methods, and state layout. Existing v0 deployments
 remain separate from `MissionRegistry`. New trustless settlement deployments
 use the MissionRegistry verification key and require a fresh zkApp key. The
-public v0 testnet address and transaction record are preserved in
+retired Mina-backed v0 address and transaction record are preserved in
 `docs/legacy-private-compute-access-v0.md`.
