@@ -23,6 +23,8 @@ import {
   zekoConfig,
   zekoNetwork
 } from "./lib/registry-state.mjs";
+import { compileMissionRegistry } from "./lib/compile-mission-registry.mjs";
+import { waitForRegistryState } from "./lib/zeko-confirmation.mjs";
 
 function inputField(value, label) {
   if (value === undefined || value === null) {
@@ -60,7 +62,7 @@ const escrow = new MissionEscrow({
 const fee = UInt64.from(zekoConfig().transactionFee);
 
 Mina.setActiveInstance(Mina.Network(network));
-await MissionRegistry.compile();
+await compileMissionRegistry();
 await fetchAccount({ publicKey: registryAddress });
 const registry = new MissionRegistry(registryAddress);
 const state = loadRegistryState();
@@ -77,10 +79,13 @@ const tx = await Mina.transaction(
 );
 await tx.prove();
 const result = await tx.sign([payerKey]).send();
-await result.wait();
-
 setRegistryEntry(state, escrow.key(), escrow.leaf());
 const nextSequence = BigInt(state.stored.sequence ?? "0") + 1n;
+await waitForRegistryState(registryAddress, {
+  registryRoot: state.map.getRoot().toString(),
+  sequence: nextSequence,
+  description: "mission escrow funding"
+});
 const saved = saveRegistryState(state, nextSequence);
 console.log(JSON.stringify({
   ok: true,

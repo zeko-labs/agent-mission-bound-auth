@@ -19,6 +19,8 @@ import {
   zekoConfig,
   zekoNetwork
 } from "./lib/registry-state.mjs";
+import { compileMissionRegistry } from "./lib/compile-mission-registry.mjs";
+import { waitForAccountState } from "./lib/zeko-confirmation.mjs";
 
 const network = zekoNetwork();
 const networkConfig = zekoConfig();
@@ -41,6 +43,20 @@ const protocolFeeRecipient = PublicKey.fromBase58(
 );
 const deployer = deployerKey.toPublicKey();
 const zkappAddress = zkappKey.toPublicKey();
+const outputPath =
+  process.env.MISSION_REGISTRY_DEPLOYMENT_PATH ??
+  path.join(
+    process.cwd(),
+    "data",
+    "deployment.mission-registry.zeko-sepolia.json"
+  );
+let previousDeployment = null;
+if (fs.existsSync(outputPath)) {
+  const parsed = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  if (parsed.zkappAddress === zkappAddress.toBase58()) {
+    previousDeployment = parsed;
+  }
+}
 
 if (
   process.env.DEPLOYER_PUBLIC_KEY &&
@@ -50,47 +66,95 @@ if (
 }
 
 Mina.setActiveInstance(Mina.Network(network));
-await MissionRegistry.compile();
+const { verificationKey } = await compileMissionRegistry();
 const deployerAccount = await fetchAccount({ publicKey: deployer });
 if (deployerAccount.error) {
   throw new Error(`Deployer account not found: ${deployer.toBase58()}`);
 }
-const existing = await fetchAccount({ publicKey: zkappAddress });
-if (!existing.error) {
+const registry = new MissionRegistry(zkappAddress);
+let existing = await fetchAccount({ publicKey: zkappAddress });
+let deployTransactionHash =
+  previousDeployment?.deployTransactionHash ?? null;
+let deployStatus = "confirmed_existing";
+
+if (existing.error) {
+  const deployTx = await Mina.transaction(
+    { sender: deployer, fee },
+    async () => {
+      AccountUpdate.fundNewAccount(deployer);
+      await registry.deploy();
+    }
+  );
+  await deployTx.prove();
+  const deployResult = await deployTx.sign([deployerKey, zkappKey]).send();
+  deployTransactionHash = deployResult.hash;
+  deployStatus = "submitted";
+  await waitForAccountState(zkappAddress, () => true, {
+    description: "MissionRegistry deployment"
+  });
+  deployStatus = "confirmed";
+  existing = await fetchAccount({ publicKey: zkappAddress });
+}
+
+const onChainVerificationKeyHash =
+  existing.account?.zkapp?.verificationKey?.hash?.toString();
+if (onChainVerificationKeyHash !== verificationKey.hash.toString()) {
   throw new Error(
-    `Account ${zkappAddress.toBase58()} already exists; use a fresh ZKAPP_PRIVATE_KEY for MissionRegistry.`
+    `MissionRegistry verification key mismatch at ${zkappAddress.toBase58()}.`
   );
 }
 
-const registry = new MissionRegistry(zkappAddress);
-const deployTx = await Mina.transaction(
-  { sender: deployer, fee },
-  async () => {
-    AccountUpdate.fundNewAccount(deployer);
-    await registry.deploy();
-  }
-);
-await deployTx.prove();
-const deployResult = await deployTx.sign([deployerKey, zkappKey]).send();
-await deployResult.wait();
-await fetchAccount({ publicKey: zkappAddress });
+const currentAuthority = registry.authorityKey.get();
+const currentFeeRecipient = registry.protocolFeeRecipient.get();
+const isUnconfigured = currentAuthority.isEmpty().toBoolean() &&
+  currentFeeRecipient.isEmpty().toBoolean();
+const isExpectedConfiguration = currentAuthority
+  .equals(authorityKey)
+  .toBoolean() && currentFeeRecipient
+  .equals(protocolFeeRecipient)
+  .toBoolean();
 
-const configureTx = await Mina.transaction(
-  { sender: deployer, fee },
-  async () => {
-    await registry.configure(
-      new MissionRegistryConfig({
-        authorityKey,
-        protocolFeeRecipient
-      })
-    );
-  }
-);
-await configureTx.prove();
-const configureResult = await configureTx
-  .sign([deployerKey, zkappKey])
-  .send();
-await configureResult.wait();
+if (!isUnconfigured && !isExpectedConfiguration) {
+  throw new Error(
+    `MissionRegistry ${zkappAddress.toBase58()} is configured with unexpected keys.`
+  );
+}
+
+let configureTransactionHash =
+  previousDeployment?.configureTransactionHash ?? null;
+let configureStatus = "confirmed_existing";
+if (isUnconfigured) {
+  const configureTx = await Mina.transaction(
+    { sender: deployer, fee },
+    async () => {
+      await registry.configure(
+        new MissionRegistryConfig({
+          authorityKey,
+          protocolFeeRecipient
+        })
+      );
+    }
+  );
+  await configureTx.prove();
+  const configureResult = await configureTx
+    .sign([deployerKey, zkappKey])
+    .send();
+  configureTransactionHash = configureResult.hash;
+  configureStatus = "submitted";
+  await waitForAccountState(
+    zkappAddress,
+    () => {
+      const observed = new MissionRegistry(zkappAddress);
+      return observed.authorityKey.get().equals(authorityKey).toBoolean() &&
+        observed.protocolFeeRecipient
+          .get()
+          .equals(protocolFeeRecipient)
+          .toBoolean();
+    },
+    { description: "MissionRegistry configuration" }
+  );
+  configureStatus = "confirmed";
+}
 
 await fetchAccount({ publicKey: zkappAddress });
 const deployment = {
@@ -100,26 +164,34 @@ const deployment = {
   zkappAddress: zkappAddress.toBase58(),
   authorityKey: authorityKey.toBase58(),
   protocolFeeRecipient: protocolFeeRecipient.toBase58(),
-  deployTransactionHash: deployResult.hash,
-  configureTransactionHash: configureResult.hash,
+  deployer: deployer.toBase58(),
+  verificationKeyHash: verificationKey.hash.toString(),
+  transactionFeeNativeUnits: fee.toString(),
+  deployTransactionHash,
+  deployStatus,
+  configureTransactionHash,
+  configureStatus,
   registryRoot: registry.registryRoot.get().toString(),
   sequence: registry.sequence.get().toString(),
-  deployedAt: new Date().toISOString(),
+  deployedAt:
+    previousDeployment?.deployedAt ?? new Date().toISOString(),
   network: {
     id: networkConfig.networkId,
     name: networkConfig.networkName,
     signingNetworkId: networkConfig.signingNetworkId,
     graphql: networkConfig.graphql,
     nativeAsset: networkConfig.nativeAsset
-  }
+  },
+  ...(previousDeployment?.deployTransactionHashNote
+    ? {
+        deployTransactionHashNote:
+          previousDeployment.deployTransactionHashNote
+      }
+    : {}),
+  ...(previousDeployment?.acceptance
+    ? { acceptance: previousDeployment.acceptance }
+    : {})
 };
-const outputPath =
-  process.env.MISSION_REGISTRY_DEPLOYMENT_PATH ??
-  path.join(
-    process.cwd(),
-    "data",
-    "deployment.mission-registry.zeko-sepolia.json"
-  );
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 const temporary = `${outputPath}.${process.pid}.${Date.now()}.tmp`;
 fs.writeFileSync(temporary, `${JSON.stringify(deployment, null, 2)}\n`);

@@ -28,6 +28,18 @@ Passing `zeko:testnet` or `zeko` to `Mina.Network({ networkId })` produces the
 wrong signature domain. `Mina.Network` is the o1js API name; using it does not
 mean MBA is deployed on Mina.
 
+## Canonical MissionRegistry
+
+The current public Sepolia deployment is recorded in
+`data/deployment.mission-registry.zeko-sepolia.json`:
+
+- Registry: `B62qikuceF52NVPb8VAVSaRoCRMusFz38pLLENjvLaUuLiDnULAVohe`
+- Mission authority: `B62qic83mhTzuGWCMpq183bZxqFtMbMDBbFRxQBCXTzBUKCd9B7aSdV`
+- Protocol fee recipient: `B62qqsTbSjdgqzhUojPZRrWYmmf6BVsRrjwjuKsHpuaeaoob8YsDuNi`
+
+The acceptance transaction anchored a signed approval, advanced the registry
+to sequence `1`, and was independently read back from the sequencer.
+
 The public endpoint currently serves account state and the actions/events
 queries used by MBA. A separate transaction indexer can be configured later if
 an operator needs wallet history or transaction recovery beyond those queries.

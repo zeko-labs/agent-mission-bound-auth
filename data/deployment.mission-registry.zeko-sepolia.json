@@ -1,0 +1,41 @@
+{
+  "version": "mba-mission-registry-deployment-v1",
+  "ok": true,
+  "contract": "MissionRegistry",
+  "zkappAddress": "B62qikuceF52NVPb8VAVSaRoCRMusFz38pLLENjvLaUuLiDnULAVohe",
+  "authorityKey": "B62qic83mhTzuGWCMpq183bZxqFtMbMDBbFRxQBCXTzBUKCd9B7aSdV",
+  "protocolFeeRecipient": "B62qqsTbSjdgqzhUojPZRrWYmmf6BVsRrjwjuKsHpuaeaoob8YsDuNi",
+  "deployer": "B62qqsTbSjdgqzhUojPZRrWYmmf6BVsRrjwjuKsHpuaeaoob8YsDuNi",
+  "verificationKeyHash": "4968041354370054416734478658624873375906136024610398619435475535548195218446",
+  "transactionFeeNativeUnits": "200000",
+  "deployTransactionHash": null,
+  "deployStatus": "confirmed_existing",
+  "configureTransactionHash": "5JuE2oaMkHy8cCzcCgFhCpBV8mP2biE7sagpG5GjMDGXGDBBgHio",
+  "configureStatus": "confirmed_existing",
+  "registryRoot": "28831116683740239225579803815979923155620183932789174387615564682385525427460",
+  "sequence": "1",
+  "deployedAt": "2026-09-03T20:13:03.410Z",
+  "network": {
+    "id": "zeko:testnet",
+    "name": "Zeko Ethereum Sepolia",
+    "signingNetworkId": "testnet",
+    "graphql": "https://sepolia.zeko.io/graphql",
+    "nativeAsset": {
+      "symbol": "sETH",
+      "decimals": 9,
+      "standard": "native",
+      "tokenId": "wSHV2S4qX9jFsLjQo8r1BsMLH2ZRKsZx6EJd1sbozGPieEC4Jf"
+    }
+  },
+  "deployTransactionHashNote": "The deploy transaction was confirmed by account existence and verification-key hash after the gateway rejected o1js's unsupported bestChain wait query.",
+  "acceptance": {
+    "status": "passed",
+    "transactionHash": "5Jv53UpqxTuBvhB6yiHF1jaVcYfhC9PVL48Rakh4eSYshL5f4kxA",
+    "missionId": "mission_9a4643b704d5fe63d37f123e",
+    "approvalId": "approval_6c4233e1662ccbaeec7d813a",
+    "registryRoot": "28831116683740239225579803815979923155620183932789174387615564682385525427460",
+    "sequence": "1",
+    "checkpoint": "before_private_compute",
+    "verifiedAt": "2026-09-03T20:15:11.493Z"
+  }
+}
