@@ -28,16 +28,19 @@ sequence cannot authorize another.
 
 ## Anchor Evidence
 
-`mba-zeko-registry-anchor-v2` binds:
+`mba-zeko-registry-anchor-v3` binds:
 
 - registry address, transaction hash, sequence, and resulting registry root
 - mission, capability, approval, receipt, nullifier, and payment commitments
 - beneficiary, payout, protocol fee, and proof artifact hash
+- MBA protocol, GraphQL-reported, and o1js signing network identifiers
 
 Portable verification first checks artifact integrity and proof binding, then
 verifies the o1js proof against a trusted key, confirms the transaction is
 included, and checks the registry state. Historical anchors require an
 archive-backed event verifier because the current root may have advanced.
+Legacy v2 anchors remain verifiable with their original `zeko:testnet`
+application-network binding.
 
 ## Local Witness Index
 

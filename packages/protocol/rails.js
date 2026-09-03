@@ -68,7 +68,7 @@ function buildRails() {
   zeko: {
     id: "zeko",
     settlementRail: "zeko",
-    network: zeko.networkId,
+    network: zeko.protocolNetworkId,
     chainName: zeko.networkName,
     asset: {
       symbol: zeko.nativeAsset.symbol,
@@ -95,6 +95,8 @@ function buildRails() {
         beneficiaryAddress,
         graphql: zeko.graphql,
         archive: zeko.archive,
+        protocolNetworkId: zeko.protocolNetworkId,
+        graphqlNetworkId: zeko.graphqlNetworkId,
         signingNetworkId: zeko.signingNetworkId,
         networkName: zeko.networkName,
         nativeAsset: zeko.nativeAsset,

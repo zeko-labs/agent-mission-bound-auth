@@ -176,7 +176,9 @@ const deployment = {
   deployedAt:
     previousDeployment?.deployedAt ?? new Date().toISOString(),
   network: {
-    id: networkConfig.networkId,
+    id: networkConfig.protocolNetworkId,
+    protocolNetworkId: networkConfig.protocolNetworkId,
+    graphqlNetworkId: networkConfig.graphqlNetworkId,
     name: networkConfig.networkName,
     signingNetworkId: networkConfig.signingNetworkId,
     graphql: networkConfig.graphql,

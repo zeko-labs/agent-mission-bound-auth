@@ -30,8 +30,15 @@
     "anchorHash"
   ],
   "properties": {
-    "version": { "const": "mba-zeko-registry-anchor-v2" },
-    "networkId": { "const": "zeko:testnet" },
+    "version": {
+      "enum": [
+        "mba-zeko-registry-anchor-v2",
+        "mba-zeko-registry-anchor-v3"
+      ]
+    },
+    "networkId": { "enum": ["zeko:testnet", "zeko:sepolia"] },
+    "protocolNetworkId": { "const": "zeko:sepolia" },
+    "graphqlNetworkId": { "const": "zeko:testnet" },
     "networkName": { "const": "Zeko Ethereum Sepolia" },
     "signingNetworkId": { "const": "testnet" },
     "nativeAsset": {
@@ -65,6 +72,27 @@
     "anchoredAt": { "type": "string", "format": "date-time" },
     "anchorId": { "type": "string", "minLength": 1 },
     "anchorHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "if": {
+    "properties": {
+      "version": { "const": "mba-zeko-registry-anchor-v3" }
+    },
+    "required": ["version"]
+  },
+  "then": {
+    "required": ["protocolNetworkId", "graphqlNetworkId"],
+    "properties": {
+      "networkId": { "const": "zeko:sepolia" },
+      "protocolNetworkId": { "const": "zeko:sepolia" },
+      "graphqlNetworkId": { "const": "zeko:testnet" }
+    }
+  },
+  "else": {
+    "properties": {
+      "networkId": { "const": "zeko:testnet" },
+      "protocolNetworkId": false,
+      "graphqlNetworkId": false
+    }
   },
   "$defs": {
     "uint": { "type": "string", "pattern": "^[0-9]+$" }

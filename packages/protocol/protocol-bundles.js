@@ -69,7 +69,7 @@ export function buildDiscoveryDocument(baseUrl) {
         ? ["zeko-o1js-mission-compliance-v1"]
         : [],
       anchoring: zekoAdvertised
-        ? ["zeko:testnet", "mba-zeko-registry-anchor-v2", "MissionRegistry"]
+        ? ["zeko:sepolia", "mba-zeko-registry-anchor-v3", "MissionRegistry"]
         : [],
       settlementLifecycle: settlementAdvertised
         ? ["receipt_created", "proof_prepared", "proof_verified", "anchor_prepared", "anchored", "settlement_release_allowed", "settled"]

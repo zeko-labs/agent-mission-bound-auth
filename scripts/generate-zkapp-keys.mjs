@@ -1,6 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { PrivateKey } from "o1js";
+import {
+  ZEKO_GRAPHQL_NETWORK_ID,
+  ZEKO_NETWORK_NAME,
+  ZEKO_PROTOCOL_NETWORK_ID,
+  ZEKO_SIGNING_NETWORK_ID
+} from "../packages/protocol/zeko-network.js";
 
 const outputDir = path.join(process.cwd(), "data", "keys");
 const roles = [
@@ -33,8 +39,10 @@ const keys = roles.map(({ role, kind, filename }) => {
   const privateKey = PrivateKey.random();
   const payload = {
     kind,
-    network: "Zeko Ethereum Sepolia",
-    signingNetworkId: "testnet",
+    network: ZEKO_NETWORK_NAME,
+    protocolNetworkId: ZEKO_PROTOCOL_NETWORK_ID,
+    graphqlNetworkId: ZEKO_GRAPHQL_NETWORK_ID,
+    signingNetworkId: ZEKO_SIGNING_NETWORK_ID,
     publicKey: privateKey.toPublicKey().toBase58(),
     privateKey: privateKey.toBase58(),
     createdAt: new Date().toISOString()

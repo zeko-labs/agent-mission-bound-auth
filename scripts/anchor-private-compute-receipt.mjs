@@ -136,7 +136,9 @@ await waitForRegistryState(registryAddress, {
 });
 const saved = saveRegistryState(state, sequence);
 const anchor = buildZekoRegistryAnchor({
-  networkId: networkConfig.networkId,
+  protocolNetworkId: networkConfig.protocolNetworkId,
+  graphqlNetworkId: networkConfig.graphqlNetworkId,
+  signingNetworkId: networkConfig.signingNetworkId,
   registryAddress: registryAddress.toBase58(),
   transactionHash: result.hash,
   sequence: saved.sequence,

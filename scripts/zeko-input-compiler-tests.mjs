@@ -55,6 +55,10 @@ assert.equal(
   zekoHolderKeyCommitment(holderPrivateKey.toPublicKey())
 );
 assert.equal(prepared.binding.networkName, "Zeko Ethereum Sepolia");
+assert.equal(prepared.binding.version, "mba-zeko-capability-binding-v3");
+assert.equal(prepared.binding.network, "zeko:sepolia");
+assert.equal(prepared.binding.protocolNetworkId, "zeko:sepolia");
+assert.equal(prepared.binding.graphqlNetworkId, "zeko:testnet");
 assert.equal(prepared.binding.signingNetworkId, "testnet");
 assert.equal(prepared.binding.nativeAsset.symbol, "sETH");
 assert.equal(prepared.binding.nativeAsset.decimals, 9);
@@ -75,6 +79,33 @@ assert.equal(
     maxSpendUsd: "2.00"
   }).valid,
   true
+);
+const {
+  protocolNetworkId: _protocolNetworkId,
+  graphqlNetworkId: _graphqlNetworkId,
+  ...legacyBindingBody
+} = prepared.binding;
+const legacyBinding = {
+  ...legacyBindingBody,
+  version: "mba-zeko-capability-binding-v2",
+  network: "zeko:testnet"
+};
+assert.equal(
+  validateZekoCapabilityBinding(legacyBinding, {
+    missionIdHash,
+    authCommitment,
+    allowedActions,
+    allowedDomains,
+    maxSpendUsd: "2.00"
+  }).valid,
+  true
+);
+assert.equal(
+  validateZekoCapabilityBinding({
+    ...legacyBinding,
+    protocolNetworkId: "zeko:sepolia"
+  }).valid,
+  false
 );
 
 const capability = buildMissionCapability({
@@ -321,6 +352,9 @@ console.log(
       checks: [
         "offchain-ed25519-to-pallas-passport-binding",
         "canonical-action-and-domain-roots",
+        "three-id-network-binding",
+        "legacy-v2-network-binding",
+        "mixed-version-network-rejection",
         "authority-capability-to-circuit-binding",
         "receipt-capability-and-nullifier-binding",
         "proof-ready-witness-compilation",

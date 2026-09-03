@@ -94,6 +94,9 @@ o1js transactions to `https://sepolia.zeko.io/graphql`, signs with the
 `testnet` domain required by that endpoint, and settles its zkApp escrow in
 native 9-decimal sETH. Ethereum rollup batching and bridge finality are below
 the MBA application boundary and are not runtime dependencies of this profile.
+Capabilities, receipts, anchors, and x402 metadata identify this profile as
+`zeko:sepolia`; endpoint validation separately expects GraphQL to report
+`zeko:testnet`.
 
 The domain verifier is not an MBA compute monopoly. It can be the merchant,
 application, an independent verifier, a local prover, or a composed domain

@@ -541,7 +541,7 @@ try {
     requestId: "req-1",
     railId: "zeko",
     settlementRail: "zeko",
-    networkId: "zeko:testnet",
+    networkId: "zeko:sepolia",
     amount: "0.1",
     asset: { symbol: "sETH", decimals: 9, standard: "native" },
     payTo: "B62test",
@@ -556,7 +556,7 @@ try {
       }
     },
     accepts: [{
-      network: "zeko:testnet",
+      network: "zeko:sepolia",
       amount: "0.1",
       asset: { symbol: "sETH", decimals: 9, standard: "native" },
       payTo: "B62test",

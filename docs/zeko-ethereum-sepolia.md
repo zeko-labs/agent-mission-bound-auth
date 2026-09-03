@@ -10,6 +10,7 @@ services below the zkApp execution boundary.
 ```env
 ZEKO_GRAPHQL=https://sepolia.zeko.io/graphql
 ZEKO_ARCHIVE=https://sepolia.zeko.io/graphql
+ZEKO_PROTOCOL_NETWORK_ID=zeko:sepolia
 ZEKO_NETWORK_ID=testnet
 ZEKO_NETWORK_NAME=Zeko Ethereum Sepolia
 ZEKO_NATIVE_ASSET=sETH
@@ -18,15 +19,26 @@ ZEKO_NATIVE_TOKEN_ID=wSHV2S4qX9jFsLjQo8r1BsMLH2ZRKsZx6EJd1sbozGPieEC4Jf
 TX_FEE=200000
 ```
 
-The three network labels have different purposes:
+The three machine identifiers have different purposes:
 
+- MBA capabilities, receipts, registry anchors, and x402 rail metadata use
+  `protocolNetworkId: zeko:sepolia`.
 - GraphQL reports `networkID: zeko:testnet`.
 - o1js and Auro sign transactions with `networkId: testnet`.
-- User-facing applications display `Zeko Ethereum Sepolia`.
+
+`zeko:sepolia` is MBA's canonical protocol-routing identifier. It is not an
+o1js signing domain and is not asserted to be Zeko's GraphQL network ID.
+User-facing applications display `Zeko Ethereum Sepolia`.
 
 Passing `zeko:testnet` or `zeko` to `Mina.Network({ networkId })` produces the
 wrong signature domain. `Mina.Network` is the o1js API name; using it does not
 mean MBA is deployed on Mina.
+
+New capability bindings and anchors use v3 and carry all three identifiers.
+Verification remains compatible with v2 artifacts that used `zeko:testnet` as
+their single application-facing network value. This metadata split does not
+change the MissionRegistry verification key, address, state, or transactions,
+so it does not require a contract redeployment.
 
 ## Canonical MissionRegistry
 

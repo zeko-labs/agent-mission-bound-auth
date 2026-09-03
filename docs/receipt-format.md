@@ -63,12 +63,15 @@ the configured domain adapter against the evidence.
 
 ## Zeko Anchor
 
-`mba-zeko-registry-anchor-v2` links the proof artifact and public settlement
+`mba-zeko-registry-anchor-v3` links the proof artifact and public settlement
 fields to a MissionRegistry transaction, sequence, and resulting root.
-It also identifies the Zeko Ethereum Sepolia network, `testnet` signing domain,
-and native sETH asset. Verification confirms Zeko transaction inclusion and
-registry state. Historical anchors require actions/events evidence from a
-transaction-capable Zeko endpoint.
+It records MBA's `zeko:sepolia` protocol identifier, GraphQL's
+`zeko:testnet` network value, the `testnet` signing domain, and the native sETH
+asset. Receipt payment and anchor metadata use the protocol identifier.
+Verification confirms Zeko transaction inclusion and registry state.
+Historical anchors require actions/events evidence from a transaction-capable
+Zeko endpoint. Legacy v2 anchors remain accepted under their original network
+binding.
 
 ## Settlement Rule
 

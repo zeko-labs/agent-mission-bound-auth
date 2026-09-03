@@ -66,13 +66,14 @@ async function checkZeko() {
     return {
       ok:
         res.ok &&
-        body.data?.networkID === config.networkId &&
+        body.data?.networkID === config.graphqlNetworkId &&
         String(body.data?.signatureKind).toLowerCase() ===
           config.signingNetworkId &&
         body.data?.syncStatus === "SYNCED" &&
         Boolean(body.data?.sequencerPk),
       graphql,
-      networkId: body.data?.networkID ?? null,
+      protocolNetworkId: config.protocolNetworkId,
+      graphqlNetworkId: body.data?.networkID ?? null,
       signingNetworkId: config.signingNetworkId,
       signatureKind: body.data?.signatureKind ?? null,
       syncStatus: body.data?.syncStatus ?? null,

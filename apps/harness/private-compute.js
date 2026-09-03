@@ -96,7 +96,10 @@ export function runPrivateCompute({ dataset, query, operation, auth, paymentRece
     outputHash: sha256Hex(output),
     paymentReceipt,
     zekoAuditReceipt: {
-      networkId: "zeko:testnet",
+      networkId: "zeko:sepolia",
+      protocolNetworkId: "zeko:sepolia",
+      graphqlNetworkId: "zeko:testnet",
+      signingNetworkId: "testnet",
       primitive: "private-compute-audit-receipt-v1",
       receiptCommitment: sha256Hex({
         datasetCommitment: datasetCommitment(dataset),

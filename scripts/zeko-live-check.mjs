@@ -46,7 +46,7 @@ if (!response.ok || !body || body.errors?.length) {
 
 const observed = body.data ?? {};
 const ok =
-  observed.networkID === config.networkId &&
+  observed.networkID === config.graphqlNetworkId &&
   String(observed.signatureKind).toLowerCase() ===
     config.signingNetworkId &&
   observed.syncStatus === "SYNCED" &&
@@ -58,7 +58,8 @@ console.log(JSON.stringify({
   network: {
     name: config.networkName,
     graphql: config.graphql,
-    networkId: observed.networkID,
+    protocolNetworkId: config.protocolNetworkId,
+    graphqlNetworkId: observed.networkID,
     signingNetworkId: config.signingNetworkId,
     signatureKind: observed.signatureKind,
     chainId: observed.daemonStatus?.chainId ?? null,
