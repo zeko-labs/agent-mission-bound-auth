@@ -41,6 +41,19 @@ async function queryGraphql(endpoint, query, variables) {
   return body.data;
 }
 
+function normalizedTransactionStatus(value) {
+  let status = value;
+  if (typeof status === "string" && status.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(status);
+      status = Array.isArray(parsed) ? parsed[0] : parsed;
+    } catch {
+      // Preserve the raw status so an unrecognized gateway value fails closed.
+    }
+  }
+  return String(status ?? "").toLowerCase();
+}
+
 export function buildZekoRegistryAnchor(input = {}) {
   const body = {
     version: ZEKO_REGISTRY_ANCHOR_VERSION,
@@ -232,13 +245,19 @@ export async function fetchZekoTransactionStatus(input = {}) {
     for (const event of block.eventData ?? []) {
       const transaction = event.transactionInfo;
       if (transaction?.hash !== transactionHash) continue;
+      const status = normalizedTransactionStatus(transaction.status);
+      const chainStatus = String(
+        block.blockInfo?.chainStatus ?? ""
+      ).toLowerCase();
+      const applied = status === "applied";
+      const canonical = chainStatus === "canonical";
       return {
-        included:
-          String(transaction.status).toLowerCase() === "applied" &&
-          String(block.blockInfo?.chainStatus).toLowerCase() ===
-            "canonical",
-        status: transaction.status,
-        chainStatus: block.blockInfo?.chainStatus,
+        included: applied && canonical,
+        applied,
+        canonical,
+        status,
+        rawStatus: transaction.status,
+        chainStatus,
         blockHeight: block.blockInfo?.height,
         sequenceNumber: transaction.sequenceNumber
       };
@@ -246,11 +265,25 @@ export async function fetchZekoTransactionStatus(input = {}) {
   }
   return {
     included: false,
+    applied: false,
+    canonical: false,
     status: "not_found",
     chainStatus: null,
     blockHeight: null,
     sequenceNumber: null
   };
+}
+
+export function isZekoTransactionConfirmedForAnchor(
+  transactionStatus,
+  state,
+  anchor
+) {
+  if (transactionStatus.included) return true;
+  return transactionStatus.applied === true &&
+    !transactionStatus.chainStatus &&
+    state.sequence === anchor.sequence &&
+    state.registryRoot === anchor.registryRoot;
 }
 
 export async function verifyZekoRegistryAnchorOnChain(
@@ -291,7 +324,11 @@ export async function verifyZekoRegistryAnchorOnChain(
       registryAddress: anchor.registryAddress
     })
   ]);
-  if (!transactionStatus.included) {
+  if (!isZekoTransactionConfirmedForAnchor(
+    transactionStatus,
+    state,
+    anchor
+  )) {
     return {
       valid: false,
       reason:

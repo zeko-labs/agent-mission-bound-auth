@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import {
-  fetchZekoTransactionStatus
+  fetchZekoTransactionStatus,
+  isZekoTransactionConfirmedForAnchor
 } from "../packages/protocol/zeko-chain.js";
 
 const registryAddress =
-  "B62qokikatWpFvyqGG9NekejnFEumRyUjrbjChaQfrvDmKwTC3UXzzz";
+  "B62qikuceF52NVPb8VAVSaRoCRMusFz38pLLENjvLaUuLiDnULAVohe";
 const transactionHash = "5Jtransaction";
 let responseBody = {
   data: {
@@ -37,6 +38,8 @@ const included = await fetchZekoTransactionStatus({
   transactionHash
 });
 assert.equal(included.included, true);
+assert.equal(included.applied, true);
+assert.equal(included.canonical, true);
 assert.equal(included.blockHeight, 42);
 assert.equal(included.sequenceNumber, 7);
 
@@ -64,6 +67,67 @@ const nonCanonical = await fetchZekoTransactionStatus({
 });
 assert.equal(nonCanonical.included, false);
 
+responseBody = {
+  data: {
+    events: [{
+      blockInfo: {
+        height: 0,
+        chainStatus: ""
+      },
+      eventData: [{
+        transactionInfo: {
+          status: '["Applied"]',
+          hash: transactionHash,
+          sequenceNumber: 0
+        }
+      }]
+    }]
+  }
+};
+const sequencerApplied = await fetchZekoTransactionStatus({
+  graphql: "https://sepolia.zeko.io/graphql",
+  registryAddress,
+  transactionHash
+});
+assert.equal(sequencerApplied.included, false);
+assert.equal(sequencerApplied.applied, true);
+assert.equal(sequencerApplied.canonical, false);
+assert.equal(sequencerApplied.status, "applied");
+const currentState = { registryRoot: "root-1", sequence: "1" };
+const currentAnchor = { registryRoot: "root-1", sequence: "1" };
+assert.equal(
+  isZekoTransactionConfirmedForAnchor(
+    sequencerApplied,
+    currentState,
+    currentAnchor
+  ),
+  true
+);
+assert.equal(
+  isZekoTransactionConfirmedForAnchor(
+    sequencerApplied,
+    currentState,
+    { ...currentAnchor, registryRoot: "wrong-root" }
+  ),
+  false
+);
+assert.equal(
+  isZekoTransactionConfirmedForAnchor(
+    sequencerApplied,
+    currentState,
+    { ...currentAnchor, sequence: "0" }
+  ),
+  false
+);
+assert.equal(
+  isZekoTransactionConfirmedForAnchor(
+    { ...sequencerApplied, chainStatus: "pending" },
+    currentState,
+    currentAnchor
+  ),
+  false
+);
+
 responseBody = { data: { events: [] } };
 const missing = await fetchZekoTransactionStatus({
   graphql: "https://sepolia.zeko.io/graphql",
@@ -78,6 +142,8 @@ console.log(JSON.stringify({
   checks: [
     "zeko-events-query",
     "applied-canonical-inclusion",
+    "redeployed-gateway-applied-status-normalization",
+    "gateway-fallback-requires-exact-current-state",
     "noncanonical-rejection",
     "missing-transaction-rejection"
   ]

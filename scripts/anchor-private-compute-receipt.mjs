@@ -37,6 +37,7 @@ import {
   zekoConfig,
   zekoNetwork
 } from "./lib/registry-state.mjs";
+import { waitForRegistryState } from "./lib/zeko-confirmation.mjs";
 
 const input = await readStdinJson();
 const artifact = input.proofArtifact;
@@ -127,9 +128,12 @@ const tx = await Mina.transaction(
 );
 await tx.prove();
 const result = await tx.sign([relayerKey]).send();
-await result.wait();
-
 const sequence = BigInt(state.stored.sequence ?? "0") + 1n;
+await waitForRegistryState(registryAddress, {
+  registryRoot: state.map.getRoot().toString(),
+  sequence,
+  description: "mission settlement"
+});
 const saved = saveRegistryState(state, sequence);
 const anchor = buildZekoRegistryAnchor({
   networkId: networkConfig.networkId,

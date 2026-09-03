@@ -2,7 +2,10 @@ import {
   isProductionProfile,
   isSettlementEnabled
 } from "./runtime.js";
-import { zekoSepoliaConfig } from "./zeko-network.js";
+import {
+  ZEKO_MISSION_REGISTRY_ADDRESS,
+  zekoSepoliaConfig
+} from "./zeko-network.js";
 
 const env = process.env;
 
@@ -53,6 +56,14 @@ function evmRail(input) {
 
 function buildRails() {
   const zeko = zekoSepoliaConfig(env);
+  const registryAddress =
+    env.MISSION_REGISTRY_PUBLIC_KEY ??
+    env.ZEKO_PAY_TO ??
+    ZEKO_MISSION_REGISTRY_ADDRESS;
+  const beneficiaryAddress =
+    env.ZEKO_BENEFICIARY ??
+    env.PRIVATE_COMPUTE_BENEFICIARY_PUBLIC_KEY ??
+    null;
   return {
   zeko: {
     id: "zeko",
@@ -70,10 +81,7 @@ function buildRails() {
       zeko.nativeAsset.decimals
     ),
     displayAmount: env.ZEKO_AMOUNT ?? "0.015",
-    payTo:
-      env.MISSION_REGISTRY_PUBLIC_KEY ??
-      env.ZEKO_PAY_TO ??
-      "B62qokikatWpFvyqGG9NekejnFEumRyUjrbjChaQfrvDmKwTC3UXzzz",
+    payTo: registryAddress,
     settlementModel: "x402-exact-settlement-zkapp-v1",
     description: "sETH settlement for ZK-authorized work on Zeko Ethereum Sepolia.",
     preview: false,
@@ -83,13 +91,8 @@ function buildRails() {
     extensions: {
       zeko: {
         primitive: "zeko-exact-settlement-zkapp-v1",
-        contractAddress:
-          env.MISSION_REGISTRY_PUBLIC_KEY ??
-          env.ZEKO_PAY_TO ??
-          null,
-        beneficiaryAddress:
-          env.ZEKO_BENEFICIARY ??
-          "B62qokikatWpFvyqGG9NekejnFEumRyUjrbjChaQfrvDmKwTC3UXzzz",
+        contractAddress: registryAddress,
+        beneficiaryAddress,
         graphql: zeko.graphql,
         archive: zeko.archive,
         signingNetworkId: zeko.signingNetworkId,
