@@ -5,10 +5,13 @@ import {
   ZEKO_GRAPHQL_NETWORK_ID,
   ZEKO_NATIVE_ASSET,
   ZEKO_NETWORK_NAME,
+  ZEKO_PROTOCOL_NETWORK_ID,
   ZEKO_SIGNING_NETWORK_ID
 } from "./zeko-network.js";
 
 export const ZEKO_REGISTRY_ANCHOR_VERSION =
+  "mba-zeko-registry-anchor-v3";
+export const LEGACY_ZEKO_REGISTRY_ANCHOR_VERSION =
   "mba-zeko-registry-anchor-v2";
 
 function requiredString(value, label) {
@@ -55,12 +58,26 @@ function normalizedTransactionStatus(value) {
 }
 
 export function buildZekoRegistryAnchor(input = {}) {
+  const protocolNetworkId =
+    input.protocolNetworkId ?? input.networkId ?? ZEKO_PROTOCOL_NETWORK_ID;
+  const graphqlNetworkId =
+    input.graphqlNetworkId ?? ZEKO_GRAPHQL_NETWORK_ID;
+  const signingNetworkId =
+    input.signingNetworkId ?? ZEKO_SIGNING_NETWORK_ID;
+  if (
+    protocolNetworkId !== ZEKO_PROTOCOL_NETWORK_ID ||
+    graphqlNetworkId !== ZEKO_GRAPHQL_NETWORK_ID ||
+    signingNetworkId !== ZEKO_SIGNING_NETWORK_ID
+  ) {
+    throw new Error("Zeko registry anchor network identifiers are invalid.");
+  }
   const body = {
     version: ZEKO_REGISTRY_ANCHOR_VERSION,
-    networkId: input.networkId ?? ZEKO_GRAPHQL_NETWORK_ID,
+    networkId: protocolNetworkId,
+    protocolNetworkId,
+    graphqlNetworkId,
     networkName: input.networkName ?? ZEKO_NETWORK_NAME,
-    signingNetworkId:
-      input.signingNetworkId ?? ZEKO_SIGNING_NETWORK_ID,
+    signingNetworkId,
     nativeAsset: input.nativeAsset ?? ZEKO_NATIVE_ASSET,
     registryAddress: requiredString(
       input.registryAddress,
@@ -125,8 +142,24 @@ export function verifyZekoRegistryAnchorBinding(
   }
   const schema = validateArtifactSchema("zeko-registry-anchor", anchor);
   if (!schema.valid) return schema;
-  if (anchor.version !== ZEKO_REGISTRY_ANCHOR_VERSION) {
+  const legacyAnchor =
+    anchor.version === LEGACY_ZEKO_REGISTRY_ANCHOR_VERSION;
+  if (anchor.version !== ZEKO_REGISTRY_ANCHOR_VERSION && !legacyAnchor) {
     return { valid: false, reason: "Unsupported Zeko registry anchor." };
+  }
+  if (
+    legacyAnchor
+      ? anchor.networkId !== ZEKO_GRAPHQL_NETWORK_ID ||
+        anchor.protocolNetworkId !== undefined ||
+        anchor.graphqlNetworkId !== undefined
+      : anchor.networkId !== ZEKO_PROTOCOL_NETWORK_ID ||
+        anchor.protocolNetworkId !== ZEKO_PROTOCOL_NETWORK_ID ||
+        anchor.graphqlNetworkId !== ZEKO_GRAPHQL_NETWORK_ID
+  ) {
+    return {
+      valid: false,
+      reason: "Zeko registry anchor network binding is invalid."
+    };
   }
   const { anchorId, anchorHash, ...body } = anchor;
   if (

@@ -51,8 +51,15 @@
         "protocolFeeNativeUnits"
       ],
       "properties": {
-        "version": { "const": "mba-zeko-capability-binding-v2" },
-        "network": { "const": "zeko:testnet" },
+        "version": {
+          "enum": [
+            "mba-zeko-capability-binding-v2",
+            "mba-zeko-capability-binding-v3"
+          ]
+        },
+        "network": { "enum": ["zeko:testnet", "zeko:sepolia"] },
+        "protocolNetworkId": { "const": "zeko:sepolia" },
+        "graphqlNetworkId": { "const": "zeko:testnet" },
         "networkName": { "const": "Zeko Ethereum Sepolia" },
         "signingNetworkId": { "const": "testnet" },
         "nativeAsset": {
@@ -90,6 +97,27 @@
         "protocolFeeNanomina": { "type": "string", "pattern": "^[0-9]+$" },
         "payoutNativeUnits": { "type": "string", "pattern": "^[0-9]+$" },
         "protocolFeeNativeUnits": { "type": "string", "pattern": "^[0-9]+$" }
+      },
+      "if": {
+        "properties": {
+          "version": { "const": "mba-zeko-capability-binding-v3" }
+        },
+        "required": ["version"]
+      },
+      "then": {
+        "required": ["protocolNetworkId", "graphqlNetworkId"],
+        "properties": {
+          "network": { "const": "zeko:sepolia" },
+          "protocolNetworkId": { "const": "zeko:sepolia" },
+          "graphqlNetworkId": { "const": "zeko:testnet" }
+        }
+      },
+      "else": {
+        "properties": {
+          "network": { "const": "zeko:testnet" },
+          "protocolNetworkId": false,
+          "graphqlNetworkId": false
+        }
       }
     },
     "missionIdHash": { "type": "string" },

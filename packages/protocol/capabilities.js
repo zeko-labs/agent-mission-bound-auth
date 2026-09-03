@@ -499,6 +499,8 @@ export function verifyCapabilityRenewal(renewal, previousCapability, renewedCapa
   if (previousCapability.zekoBinding && renewedCapability.zekoBinding) {
     for (const key of [
       "network",
+      "protocolNetworkId",
+      "graphqlNetworkId",
       "networkName",
       "signingNetworkId",
       "missionIdHash",

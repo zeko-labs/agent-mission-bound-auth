@@ -328,7 +328,7 @@ const anchorResult = buildRegistryAnchorFromReceipt({
   receipt: preAnchorReceipt,
   proofArtifact: { proofSystem: "signed-commitment-transition", statementHash },
   relayerResponse: {
-    networkId: "zeko:testnet",
+    networkId: "zeko:sepolia",
     zkappAddress: "B62qbrowserhelperregistry",
     txHash: `0x${sha256Hex("browser-helper-anchor").slice(0, 64)}`
   },

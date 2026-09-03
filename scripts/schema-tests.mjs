@@ -10,11 +10,13 @@ import {
 import {
   buildEnterpriseIdentityAttestation
 } from "../packages/protocol/identity-attestations.js";
+import { id, sha256Hex } from "../packages/protocol/digest.js";
 import {
   validateArtifactSchema
 } from "../packages/protocol/schema-validation.js";
 import {
-  buildZekoRegistryAnchor
+  buildZekoRegistryAnchor,
+  verifyZekoRegistryAnchorBinding
 } from "../packages/protocol/zeko-chain.js";
 
 const schemaDirectory = path.resolve("schemas");
@@ -155,6 +157,46 @@ assert.equal(
   validateArtifactSchema("zeko-registry-anchor", anchor).valid,
   true
 );
+const anchorReceipt = {
+  zekoStatement: statement,
+  proof: { artifact: proofArtifact }
+};
+assert.equal(
+  verifyZekoRegistryAnchorBinding(anchorReceipt, anchor).valid,
+  true
+);
+const {
+  anchorId: _anchorId,
+  anchorHash: _anchorHash,
+  protocolNetworkId: _protocolNetworkId,
+  graphqlNetworkId: _graphqlNetworkId,
+  ...legacyAnchorBody
+} = anchor;
+const legacyAnchorPayload = {
+  ...legacyAnchorBody,
+  version: "mba-zeko-registry-anchor-v2",
+  networkId: "zeko:testnet"
+};
+const legacyAnchor = {
+  ...legacyAnchorPayload,
+  anchorId: id("zeko_anchor", legacyAnchorPayload),
+  anchorHash: sha256Hex(legacyAnchorPayload)
+};
+assert.equal(
+  validateArtifactSchema("zeko-registry-anchor", legacyAnchor).valid,
+  true
+);
+assert.equal(
+  verifyZekoRegistryAnchorBinding(anchorReceipt, legacyAnchor).valid,
+  true
+);
+assert.equal(
+  validateArtifactSchema("zeko-registry-anchor", {
+    ...legacyAnchor,
+    protocolNetworkId: "zeko:sepolia"
+  }).valid,
+  false
+);
 
 console.log(JSON.stringify({
   ok: true,
@@ -164,6 +206,8 @@ console.log(JSON.stringify({
     "unknown-field-rejection",
     "capability-hides-nullifier-secret",
     "proof-artifact-schema",
-    "zeko-anchor-schema"
+    "zeko-anchor-v3-schema",
+    "legacy-zeko-anchor-v2-schema",
+    "mixed-anchor-version-rejection"
   ]
 }, null, 2));

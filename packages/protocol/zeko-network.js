@@ -1,4 +1,5 @@
 export const ZEKO_GRAPHQL_NETWORK_ID = "zeko:testnet";
+export const ZEKO_PROTOCOL_NETWORK_ID = "zeko:sepolia";
 export const ZEKO_SIGNING_NETWORK_ID = "testnet";
 export const ZEKO_NETWORK_NAME = "Zeko Ethereum Sepolia";
 export const ZEKO_SEPOLIA_GRAPHQL = "https://sepolia.zeko.io/graphql";
@@ -46,7 +47,15 @@ export function zekoSepoliaConfig(env = process.env) {
     );
   }
   return {
-    networkId: ZEKO_GRAPHQL_NETWORK_ID,
+    // `networkId` remains as a compatibility alias for application-facing
+    // artifacts. Live endpoint checks must use `graphqlNetworkId`.
+    networkId: fixedSetting(
+      env,
+      "ZEKO_PROTOCOL_NETWORK_ID",
+      ZEKO_PROTOCOL_NETWORK_ID
+    ),
+    protocolNetworkId: ZEKO_PROTOCOL_NETWORK_ID,
+    graphqlNetworkId: ZEKO_GRAPHQL_NETWORK_ID,
     signingNetworkId: fixedSetting(
       env,
       "ZEKO_NETWORK_ID",

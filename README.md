@@ -46,6 +46,11 @@ native asset is 9-decimal sETH. MBA does not operate an Ethereum batch
 settler, bridge, or Ethereum RPC client; those are network responsibilities,
 just as block production was not part of the application protocol.
 
+MBA keeps three network identifiers separate: `zeko:sepolia` is the canonical
+MBA protocol and x402 rail identifier, GraphQL currently reports
+`zeko:testnet`, and o1js/Auro sign with `testnet`. The first is an MBA routing
+identifier, not a replacement for either network value supplied by Zeko.
+
 `zkapp/MissionComplianceProgram.ts` proves a bounded mission trace. Its public
 statement includes the identity, capability, policy, approval, holder, trusted
 domain verifier, dataset, domain-proof, output, payment, receipt, nullifier,
@@ -173,8 +178,9 @@ state and is bearer-gated in production.
 ## x402 v2
 
 MBA's x402 adapter emits `PAYMENT-REQUIRED`, accepts `PAYMENT-SIGNATURE`, and returns
-`PAYMENT-RESPONSE`. Amounts are integer asset base units and networks use CAIP-2
-identifiers. Ethereum and Base use the EVM facilitator path. Arc and Tempo are
+`PAYMENT-RESPONSE`. Amounts are integer asset base units. The Zeko rail uses
+the MBA protocol identifier `zeko:sepolia`; Ethereum and Base use CAIP-2 IDs
+and the EVM facilitator path. Arc and Tempo are
 clearly marked preview rails until their production facilitator adapters and
 end-to-end chain tests are configured. In production, MBA submits the selected
 payment payload and the verbatim advertised requirement to the facilitator's
@@ -236,7 +242,8 @@ A structurally valid receipt is not settlement authority. Production release
 requires a valid `mba-mission-compliance-proof-v1`, a trusted verification key,
 a trusted mission-authority JWKS, a trusted domain-verifier module, and
 chain-backed
-`mba-zeko-registry-anchor-v2` verification.
+`mba-zeko-registry-anchor-v3` verification. The verifier continues to accept
+legacy v2 anchors whose single `networkId` was `zeko:testnet`.
 
 ## Layout
 

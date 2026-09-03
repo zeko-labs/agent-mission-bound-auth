@@ -22,10 +22,13 @@ import {
   ZEKO_GRAPHQL_NETWORK_ID,
   ZEKO_NATIVE_ASSET,
   ZEKO_NETWORK_NAME,
+  ZEKO_PROTOCOL_NETWORK_ID,
   ZEKO_SIGNING_NETWORK_ID
 } from "./zeko-network.js";
 
 export const ZEKO_CAPABILITY_BINDING_VERSION =
+  "mba-zeko-capability-binding-v3";
+export const LEGACY_ZEKO_CAPABILITY_BINDING_VERSION =
   "mba-zeko-capability-binding-v2";
 export const ZEKO_ACTION_NAMESPACE = "mba-boundary-action-v1";
 export const ZEKO_DOMAIN_NAMESPACE = "mba-boundary-domain-v1";
@@ -221,13 +224,42 @@ export function validateZekoCapabilityBinding(binding, context = {}) {
     return { valid: false, reason: "Missing Zeko capability binding." };
   }
   try {
-    if (binding.version !== ZEKO_CAPABILITY_BINDING_VERSION) {
+    const legacyBinding =
+      binding.version === LEGACY_ZEKO_CAPABILITY_BINDING_VERSION;
+    if (
+      binding.version !== ZEKO_CAPABILITY_BINDING_VERSION &&
+      !legacyBinding
+    ) {
       throw new Error("Unsupported Zeko capability binding version.");
     }
-    if (binding.network !== ZEKO_GRAPHQL_NETWORK_ID) {
-      throw new Error(
-        `Zeko capability binding network must be ${ZEKO_GRAPHQL_NETWORK_ID}.`
-      );
+    if (legacyBinding) {
+      if (
+        binding.protocolNetworkId !== undefined ||
+        binding.graphqlNetworkId !== undefined
+      ) {
+        throw new Error(
+          "Legacy Zeko capability bindings cannot declare v3 network identifiers."
+        );
+      }
+      if (binding.network !== ZEKO_GRAPHQL_NETWORK_ID) {
+        throw new Error(
+          `Legacy Zeko capability binding network must be ${ZEKO_GRAPHQL_NETWORK_ID}.`
+        );
+      }
+    } else {
+      if (
+        binding.network !== ZEKO_PROTOCOL_NETWORK_ID ||
+        binding.protocolNetworkId !== ZEKO_PROTOCOL_NETWORK_ID
+      ) {
+        throw new Error(
+          `Zeko protocol network must be ${ZEKO_PROTOCOL_NETWORK_ID}.`
+        );
+      }
+      if (binding.graphqlNetworkId !== ZEKO_GRAPHQL_NETWORK_ID) {
+        throw new Error(
+          `Zeko GraphQL network must be ${ZEKO_GRAPHQL_NETWORK_ID}.`
+        );
+      }
     }
     if (binding.signingNetworkId !== ZEKO_SIGNING_NETWORK_ID) {
       throw new Error(
@@ -520,7 +552,9 @@ export async function prepareMissionComplianceBinding(input = {}) {
 
   const binding = {
     version: ZEKO_CAPABILITY_BINDING_VERSION,
-    network: ZEKO_GRAPHQL_NETWORK_ID,
+    network: ZEKO_PROTOCOL_NETWORK_ID,
+    protocolNetworkId: ZEKO_PROTOCOL_NETWORK_ID,
+    graphqlNetworkId: ZEKO_GRAPHQL_NETWORK_ID,
     networkName: ZEKO_NETWORK_NAME,
     signingNetworkId: ZEKO_SIGNING_NETWORK_ID,
     nativeAsset: ZEKO_NATIVE_ASSET,

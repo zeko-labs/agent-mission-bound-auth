@@ -120,7 +120,7 @@ function baseArtifacts() {
     receiptIdHash: sha256Hex(receipt.receiptId),
     nullifier: capability.nullifier,
     previousRoot: "0",
-    networkId: "zeko:testnet",
+    networkId: "zeko:sepolia",
     registryAddress: "B62qregistry",
     txHash: `0x${sha256Hex("binding-anchor").slice(0, 64)}`
   });

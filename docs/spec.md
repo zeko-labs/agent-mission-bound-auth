@@ -138,6 +138,18 @@ reduction modulo the Pallas field order. Monetary values use integer microusd
 or asset base units. Zeko Ethereum Sepolia's native sETH uses 9-decimal base
 units.
 
+Zeko-bound v3 artifacts separate network identity by function:
+
+```text
+protocolNetworkId  zeko:sepolia   MBA capability, receipt, anchor, and x402 routing
+graphqlNetworkId   zeko:testnet   value asserted by the live GraphQL endpoint
+signingNetworkId   testnet        o1js/Auro transaction-signature domain
+```
+
+Verifiers accept legacy v2 artifacts with `network: zeko:testnet` or
+`networkId: zeko:testnet`, but reject mixed v2/v3 fields and noncanonical v3
+combinations.
+
 ## Registry And Settlement
 
 MissionRegistry stores one namespaced Merkle root and sequence. Namespace keys

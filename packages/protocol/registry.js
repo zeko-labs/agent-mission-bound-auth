@@ -35,7 +35,7 @@ export function buildRegistryAnchor(input = {}) {
     receiptIdHash: input.receiptIdHash,
     nullifier: input.nullifier,
     previousRoot: input.previousRoot ?? "0",
-    networkId: input.networkId ?? "zeko:testnet",
+    networkId: input.networkId ?? "zeko:sepolia",
     registryAddress: input.registryAddress ?? null,
     txHash: input.txHash ?? null
   };
@@ -79,7 +79,7 @@ export function buildRegistryAnchorFromReceipt(input = {}) {
   const proofArtifact = input.proofArtifact ?? null;
   const txHash = input.txHash ?? relayerResponse?.txHash ?? relayerResponse?.transactionHash ?? null;
   const registryAddress = input.registryAddress ?? input.zkappAddress ?? relayerResponse?.registryAddress ?? relayerResponse?.zkappAddress ?? null;
-  const networkId = input.networkId ?? relayerResponse?.networkId ?? receipt.anchor?.registry ?? "zeko:testnet";
+  const networkId = input.networkId ?? relayerResponse?.networkId ?? receipt.anchor?.registry ?? "zeko:sepolia";
   const proofHash = input.proofHash ?? sha256Hex({
     proofArtifact,
     relayerResponse,

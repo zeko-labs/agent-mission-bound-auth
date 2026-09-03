@@ -16,7 +16,9 @@
   "sequence": "1",
   "deployedAt": "2026-09-03T20:13:03.410Z",
   "network": {
-    "id": "zeko:testnet",
+    "id": "zeko:sepolia",
+    "protocolNetworkId": "zeko:sepolia",
+    "graphqlNetworkId": "zeko:testnet",
     "name": "Zeko Ethereum Sepolia",
     "signingNetworkId": "testnet",
     "graphql": "https://sepolia.zeko.io/graphql",
