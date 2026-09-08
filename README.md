@@ -192,14 +192,15 @@ does not advertise settlement rails and does not call a facilitator.
 ## Zeko Operations
 
 The canonical Zeko Sepolia `MissionRegistry` is
-`B62qikuceF52NVPb8VAVSaRoCRMusFz38pLLENjvLaUuLiDnULAVohe`. Its public
+`B62qpBXMbrKVJwcS9wQN7SpFb6jkrXn2xrntCoM6D461qL2sYZarPHi`. Its public
 deployment and acceptance evidence is stored in
 `data/deployment.mission-registry.zeko-sepolia.json`.
 
 The frozen v0 `PrivateComputeAccess` contract remains in the repository for
 source and deployed-contract compatibility. Its state and verification key are
-not compatible with `MissionRegistry`; deploy a fresh zkApp key for trustless
-settlement v1. See the
+not compatible with `MissionRegistry`; this fresh Sepolia deployment reuses
+the historic B62 public identity but starts with a distinct v1 contract state.
+See the
 [v0 deployment record](./docs/legacy-private-compute-access-v0.md).
 
 ```bash

@@ -45,12 +45,13 @@ so it does not require a contract redeployment.
 The current public Sepolia deployment is recorded in
 `data/deployment.mission-registry.zeko-sepolia.json`:
 
-- Registry: `B62qikuceF52NVPb8VAVSaRoCRMusFz38pLLENjvLaUuLiDnULAVohe`
+- Registry: `B62qpBXMbrKVJwcS9wQN7SpFb6jkrXn2xrntCoM6D461qL2sYZarPHi`
 - Mission authority: `B62qic83mhTzuGWCMpq183bZxqFtMbMDBbFRxQBCXTzBUKCd9B7aSdV`
-- Protocol fee recipient: `B62qqsTbSjdgqzhUojPZRrWYmmf6BVsRrjwjuKsHpuaeaoob8YsDuNi`
+- Protocol fee recipient: `B62qqpyJPDGci2uxpapnXQmrFr77b47wRx1v2GDRnAHMUFJFjJv4YPb`
 
-The acceptance transaction anchored a signed approval, advanced the registry
-to sequence `1`, and was independently read back from the sequencer.
+The acceptance transaction `5JuCzKzT4y1xtCWMZbLwpkdow5Ji6EASb8gmAJaGzkjN8bnKLFYy`
+anchored a signed approval, advanced the registry to sequence `1`, and was
+independently read back from the sequencer.
 
 The public endpoint currently serves account state and the actions/events
 queries used by MBA. A separate transaction indexer can be configured later if
@@ -73,8 +74,10 @@ npm run zeko:live-check
 
 ## Deployment
 
-Use a fresh registry key, authority key, and Sepolia-scoped witness index. Keep
-all private keys in ignored local files or a secret manager.
+Use a fresh Sepolia deployment and Sepolia-scoped witness index. The canonical
+deployment deliberately reuses the historic B62 registry identity, but it has
+a fresh v1 contract state on this chain. Keep all private keys in ignored local
+files or a secret manager.
 
 ```bash
 npm run zkapp:generate-keys
@@ -89,7 +92,7 @@ metadata to `data/deployment.mission-registry.zeko-sepolia.json`.
 
 The local Merkle witness index defaults to
 `data/mission-registry-state.zeko-sepolia.json`. Never reuse the retired
-Mina-backed registry state or keys.
+Mina-backed registry state; the new Sepolia registry begins with an empty root.
 
 ## Acceptance Gate
 

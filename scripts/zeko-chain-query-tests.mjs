@@ -3,9 +3,10 @@ import {
   fetchZekoTransactionStatus,
   isZekoTransactionConfirmedForAnchor
 } from "../packages/protocol/zeko-chain.js";
+import { ZEKO_MISSION_REGISTRY_ADDRESS } from
+  "../packages/protocol/zeko-network.js";
 
-const registryAddress =
-  "B62qikuceF52NVPb8VAVSaRoCRMusFz38pLLENjvLaUuLiDnULAVohe";
+const registryAddress = ZEKO_MISSION_REGISTRY_ADDRESS;
 const transactionHash = "5Jtransaction";
 let responseBody = {
   data: {

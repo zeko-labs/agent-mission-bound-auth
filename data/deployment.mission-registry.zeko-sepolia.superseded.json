@@ -1,0 +1,23 @@
+{
+  "version": "mba-mission-registry-deployment-v1",
+  "status": "superseded",
+  "supersededAt": "2026-09-08T22:05:06.174Z",
+  "supersededBy": "B62qpBXMbrKVJwcS9wQN7SpFb6jkrXn2xrntCoM6D461qL2sYZarPHi",
+  "contract": "MissionRegistry",
+  "zkappAddress": "B62qikuceF52NVPb8VAVSaRoCRMusFz38pLLENjvLaUuLiDnULAVohe",
+  "authorityKey": "B62qic83mhTzuGWCMpq183bZxqFtMbMDBbFRxQBCXTzBUKCd9B7aSdV",
+  "protocolFeeRecipient": "B62qqsTbSjdgqzhUojPZRrWYmmf6BVsRrjwjuKsHpuaeaoob8YsDuNi",
+  "deployer": "B62qqsTbSjdgqzhUojPZRrWYmmf6BVsRrjwjuKsHpuaeaoob8YsDuNi",
+  "verificationKeyHash": "4968041354370054416734478658624873375906136024610398619435475535548195218446",
+  "transactionFeeNativeUnits": "200000",
+  "configureTransactionHash": "5JuE2oaMkHy8cCzcCgFhCpBV8mP2biE7sagpG5GjMDGXGDBBgHio",
+  "registryRoot": "18790655599203154925344999435228465575432997450239479138054579590491229310665",
+  "sequence": "2",
+  "network": {
+    "protocolNetworkId": "zeko:sepolia",
+    "graphqlNetworkId": "zeko:testnet",
+    "name": "Zeko Ethereum Sepolia",
+    "signingNetworkId": "testnet",
+    "graphql": "https://sepolia.zeko.io/graphql"
+  }
+}
