@@ -24,8 +24,10 @@ release beneficiary and protocol-fee payouts atomically.
 Existing v0 users can continue verifying this contract and its historical
 transactions against the retired network records. It is not an active MBA
 deployment target. New trustless settlement deployments use
-`zkapp/MissionRegistry.ts` with a fresh zkApp key because its state layout and
-verification key are intentionally different.
+`zkapp/MissionRegistry.ts` because its state layout and verification key are
+intentionally different. A fresh chain deployment may reuse a prior B62 public
+identity when the key holder chooses, but it always begins with a new v1 state
+root and does not inherit v0 state.
 
 The former `data/*-anchor-state.json` files were local mutable indexes with
 pending client state, not canonical chain evidence. They are no longer tracked.

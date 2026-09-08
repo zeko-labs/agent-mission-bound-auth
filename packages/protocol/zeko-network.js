@@ -4,7 +4,7 @@ export const ZEKO_SIGNING_NETWORK_ID = "testnet";
 export const ZEKO_NETWORK_NAME = "Zeko Ethereum Sepolia";
 export const ZEKO_SEPOLIA_GRAPHQL = "https://sepolia.zeko.io/graphql";
 export const ZEKO_MISSION_REGISTRY_ADDRESS =
-  "B62qikuceF52NVPb8VAVSaRoCRMusFz38pLLENjvLaUuLiDnULAVohe";
+  "B62qpBXMbrKVJwcS9wQN7SpFb6jkrXn2xrntCoM6D461qL2sYZarPHi";
 export const ZEKO_NATIVE_ASSET = Object.freeze({
   symbol: "sETH",
   decimals: 9,
